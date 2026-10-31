@@ -20,7 +20,7 @@
 
 /*
  * MSA E-learning Makeover
- * Copyright 2026 Ninoooozzzz. All rights reserved.
+ * Copyright 2026 Empowzi. All rights reserved.
  * You may install and use this script for personal use.
  * Copying, modifying, or republishing it without permission is not allowed.
  */

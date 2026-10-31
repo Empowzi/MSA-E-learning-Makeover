@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MSA E-learning Makeover
 // @icon         https://msa.edu.eg/msauniversity/wp-content/uploads/2026/03/MSA-Logo-1.png
-// @author       Ninoooozzzz
-// @license      Copyright 2026 Ninoooozzzz. All rights reserved.
+// @author       Empowzi
+// @license      Copyright 2026 Empowzi. All rights reserved.
 // @namespace    https://tampermonkey.net/
 // @version      5.0
 // @description  Clean UI, dark mode, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts

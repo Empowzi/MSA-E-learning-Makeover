@@ -35,7 +35,7 @@ A userscript that gives the MSA e-learning site (Moodle) a cleaner look, adds a 
 ## Install
 
 1. Install a userscript manager such as [Tampermonkey](https://www.tampermonkey.net/) or Violentmonkey.
-2. Install the script from Greasy Fork: **[add your Greasy Fork link here]**
+2. Install the script from Greasy Fork: **https://greasyfork.org/en/scripts/603137-msa-e-learning-makeover**
 3. Log in to [e-learning.msa.edu.eg](https://e-learning.msa.edu.eg) and open **My courses** once, so the script can learn your course list.
 
 ## Privacy

@@ -4,7 +4,7 @@
 // @author       Empowzi
 // @license      Copyright 2026 Empowzi. All rights reserved.
 // @namespace    https://tampermonkey.net/
-// @version      5.3
+// @version      5.4
 // @description  Clean UI, dark mode, subject artwork on course cards, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts
 // @match        *://*/*
 // @noframes
@@ -517,20 +517,30 @@
        SUBJECT ICONS
     ===================================================== */
     const ICONS = [
-      [/physic/i, '⚛️'],
-      [/chem/i, '🧪'],
-      [/mechanic|dynamic|statics|kinematic/i, '⚙️'],
-      [/draw|graphic|cad/i, '📐'],
-      [/english|writing|research|composition|language|literature/i, '✍️'],
-      [/math|calculus|algebra|statistic|probab/i, '🧮'],
-      [/program|comput|coding|software|informat/i, '💻'],
-      [/electric|circuit|electron/i, '⚡'],
-      [/thermo|heat/i, '🔥'],
-      [/fluid|hydraul/i, '💧'],
-      [/material|metal/i, '🧱'],
-      [/bio/i, '🧬'],
-      [/econom|manage|business|account/i, '📊'],
-      [/arabic/i, '📖'],
+      [/arabic|عرب/i, '📖'],
+      [/machine learning|artificial intel|data science|data struct|program|comput|coding|software|informat|برمج|حاسب|حاسوب/i, '💻'],
+      [/physic|فيزياء/i, '⚛️'],
+      [/chem|كيمياء/i, '🧪'],
+      [/mechanic|dynamic|statics|kinematic|ميكانيك/i, '⚙️'],
+      [/\bcad\b|draw|graphic|رسم/i, '📐'],
+      [/histor|archaeolog|ancient|civiliz|تاريخ|حضارة/i, '🏛️'],
+      [/\blaws?\b|legal|legislat|constitution|jurisprud|قانون|حقوق/i, '⚖️'],
+      [/medic|nurs|pharm|anatom|clinic|dental|surgery|\bhealth|صيدل|تمريض|(^|\s)طب(\s|$)/i, '🩺'],
+      [/psycholog|neuro|cogniti|behavio|نفس/i, '🧠'],
+      [/geograph|geolog|environment|climate|\bearth|جغراف|جيولوج|بيئة/i, '🌍'],
+      [/music|موسيق/i, '🎵'],
+      [/\barts?\b|paint|illustrat|photograph|film|theat|cinema|(^|\s)فن(ون)?(\s|$)/i, '🎨'],
+      [/civil|architect|construct|bridge|urban|survey|structural|concrete|مدني|معمار|عمارة|إنشاء/i, '🏗️'],
+      [/sociolog|politic|anthropolog|\bsocial|government|international relations|اجتماع|سياس/i, '👥'],
+      [/french|german|spanish|italian|chinese|japanese|turkish|russian|translation|linguistic/i, '🗣️'],
+      [/english|writing|research|composition|language|literature|انجليز|إنجليز/i, '✍️'],
+      [/math|calculus|algebra|statistic|probab|رياضيات|تفاضل|تكامل|جبر|إحصاء|احصاء/i, '🧮'],
+      [/electric|circuit|electron|كهرب/i, '⚡'],
+      [/\bheat|thermo|حرار/i, '🔥'],
+      [/fluid|hydraul|موائع/i, '💧'],
+      [/material|metal|مواد|معادن/i, '🧱'],
+      [/\bbio|genetic|أحياء|احياء|بيولوج/i, '🧬'],
+      [/econom|manage|business|account|financ|market|اقتصاد|إدارة|ادارة|محاسبة/i, '📊'],
     ];
     const iconFor = (text) => (ICONS.find(([re]) => re.test(text)) || [0, '📘'])[1];
 
@@ -742,6 +752,95 @@
         `<circle cx="380" cy="66" r="26" ${ACC}/><circle cx="262" cy="40" r="8" ${ACC}/>
          <circle cx="446" cy="106" r="5" ${ACC}/><circle cx="330" cy="108" r="2.5" ${ACC}/><circle cx="470" cy="60" r="2.5" ${ACC}/>`),
 
+      // History: temple, pyramid, sun
+      history: () => svgWrap(`
+        <path d="M232 54L296 24L360 54Z" fill="#fff" fill-opacity=".18"/><path d="M238 58h116"/>
+        <rect x="246" y="64" width="10" height="42"/><rect x="268" y="64" width="10" height="42"/><rect x="290" y="64" width="10" height="42"/>
+        <rect x="312" y="64" width="10" height="42"/><rect x="334" y="64" width="10" height="42"/>
+        <path d="M232 110h128M238 117h116"/>
+        <path d="M392 110L434 56L476 110Z" fill="#fff" fill-opacity=".15"/><path d="M434 56L420 110M406 90h56"/>`,
+        `<circle cx="448" cy="26" r="11" ${ACC}/><circle cx="296" cy="42" r="5" ${ACC}/>
+         <path d="M210 40q8-10 16 0t16 0" ${ACCS.replace('2.6', '2')}/>`),
+
+      // Law: scales of justice
+      law: () => svgWrap(`
+        <path d="M340 22V108M308 112h64M286 34h108"/>
+        <path d="M286 34L264 80M286 34L308 80M394 34L372 80M394 34L416 80"/>
+        ${svgText(206, 98, 54, '&#167;')}`,
+        `<path d="M260 80h52a26 12 0 0 1-52 0z" ${ACC}/><path d="M368 80h52a26 12 0 0 1-52 0z" ${ACC}/>
+         <circle cx="340" cy="16" r="7" ${ACC}/>`),
+
+      // Medical: heartbeat, cross, pill, heart
+      medical: () => svgWrap(`
+        <path d="M200 76h56l10-22 12 52 14-68 12 38h34"/>
+        <path d="M236 14v30M221 29h30" stroke-width="5"/>
+        <g transform="rotate(-35 330 104)"><rect x="300" y="94" width="60" height="22" rx="11" fill="#fff" fill-opacity=".15"/><path d="M330 94v22"/></g>`,
+        `<path d="M440 70C406 50 414 22 434 26C438 27 440 32 440 32C440 32 442 27 446 26C466 22 474 50 440 70Z" ${ACC}/>
+         <circle cx="372" cy="54" r="3.5" ${ACC}/><circle cx="388" cy="84" r="3" ${ACC}/>`),
+
+      // Psychology: brain, idea bulb, thought bubbles
+      psych: () => svgWrap(`
+        <path d="M370 24C336 22 318 44 326 64C316 82 332 104 356 100C364 112 384 112 392 100C416 104 428 82 414 64C422 44 404 22 370 24Z" fill="#fff" fill-opacity=".14"/>
+        <path d="M370 26V100M338 56q10-14 22 0M338 80q12-12 22 0M380 50q12-12 22 0M380 76q12-12 24 0"/>
+        <circle cx="300" cy="34" r="4"/><circle cx="284" cy="22" r="3"/>
+        ${wave(206, 112, 5, 30, 90)}`,
+        `<circle cx="452" cy="36" r="15" ${ACC}/><path d="M446 54h12M448 60h8" fill="none" stroke="${GOLD}" stroke-width="3" stroke-linecap="round"/>
+         <path d="M452 8v6M472 18l-4 4M432 18l4 4M480 36h-6M424 36h6" ${ACCS.replace('2.6', '2.2')}/>`),
+
+      // Geography: globe, mountains, map pin
+      geo: () => svgWrap(`
+        <circle cx="380" cy="66" r="48"/><ellipse cx="380" cy="66" rx="20" ry="48"/><ellipse cx="380" cy="66" rx="38" ry="48" opacity=".6"/>
+        <path d="M332 66h96M340 44h80M340 88h80"/>
+        <path d="M204 112l30-50 20 28 18-24 36 46z" fill="#fff" fill-opacity=".15"/>`,
+        `<path d="M358 52q14-10 24 2t-8 16q-12 4-18-6z" ${ACC}/><path d="M392 76q12-4 16 8t-8 14q-10 0-8-22z" ${ACC}/>
+         <path d="M450 6a11 11 0 0 1 11 11c0 11-11 24-11 24s-11-13-11-24a11 11 0 0 1 11-11z" ${ACC}/><circle cx="450" cy="17" r="4" fill="#1d2740" stroke="none"/>`),
+
+      // Music: staff, notes, sound wave
+      music: () => svgWrap(`
+        <path d="M206 34h260M206 46h260M206 58h260M206 70h260M206 82h260" stroke-width="1.6"/>
+        ${svgText(214, 96, 70, '&#119070;', 'Segoe UI Symbol,Arial,sans-serif')}
+        ${wave(206, 116, 6, 26, 260)}`,
+        `<ellipse cx="290" cy="78" rx="8" ry="6" transform="rotate(-20 290 78)" ${ACC}/><path d="M297 76V32" ${ACCS}/>
+         <ellipse cx="350" cy="64" rx="8" ry="6" transform="rotate(-20 350 64)" ${ACC}/><path d="M357 62V20" ${ACCS}/>
+         <ellipse cx="410" cy="50" rx="8" ry="6" transform="rotate(-20 410 50)" ${ACC}/><path d="M417 48V12" ${ACCS}/>
+         <path d="M357 20L417 12" ${ACCS.replace('2.6', '5')}/>`),
+
+      // Art: palette, brush
+      art: () => svgWrap(`
+        <path d="M300 22C250 22 224 64 248 96C262 114 290 104 292 90C294 80 306 78 318 84C348 100 376 80 376 60C376 40 344 22 300 22Z" fill="#fff" fill-opacity=".14"/>
+        <g transform="rotate(35 430 66)"><rect x="396" y="60" width="76" height="12" rx="6"/><path d="M396 60h-18l-8 6 8 6h18"/></g>`,
+        `<circle cx="268" cy="62" r="8" ${ACC}/><circle cx="292" cy="44" r="8" fill="#ff8fab" stroke="none"/>
+         <circle cx="324" cy="46" r="8" fill="#8ee8ff" stroke="none"/><circle cx="350" cy="66" r="8" fill="#b9f6a5" stroke="none"/>
+         <g transform="rotate(35 430 66)"><path d="M378 60l-8 6 8 6z" ${ACC}/></g>
+         <circle cx="456" cy="106" r="5" ${ACC}/><circle cx="440" cy="116" r="3" ${ACC}/>`),
+
+      // Civil / architecture: skyline + cable bridge
+      civil: () => svgWrap(`
+        <path d="M208 110V68h24v42M238 110V40h28v70M272 110V74h22v42"/>
+        <path d="M246 54h12M246 68h12M246 82h12M216 78h8M216 92h8M278 86h10M278 100h10"/>
+        <path d="M312 98h160M360 98V34M432 98V34M352 34h16M424 34h16"/>
+        <path d="M200 114h280"/>`,
+        `<path d="M360 36L322 98M360 36L396 98M432 36L396 98M432 36L470 98" ${ACCS.replace('2.6', '2')}/>
+         <circle cx="300" cy="24" r="9" ${ACC}/>`),
+
+      // Society / politics: connected people
+      society: () => {
+        const person = (x, y, a = '') => `<g transform="translate(${x} ${y})" ${a}><circle r="9"/><path d="M-17 28a17 15 0 0 1 34 0z"/></g>`;
+        return svgWrap(`
+          <path d="M300 56L380 44L440 82L344 98L300 56M380 44L344 98" stroke-dasharray="4 5" stroke-width="1.8"/>
+          ${person(300, 44)}${person(440, 70)}${person(344, 86)}`,
+          `${person(380, 32, ACC)}<circle cx="424" cy="24" r="12" ${ACC}/><path d="M416 34l-4 10l12-6z" ${ACC}/>`);
+      },
+
+      // Foreign languages: speech bubbles
+      lang: () => svgWrap(`
+        <rect x="214" y="16" width="104" height="40" rx="14" fill="#fff" fill-opacity=".14"/><path d="M240 56l-6 16l24-16"/>
+        ${svgText(266, 44, 22, 'Hello', 'Georgia,serif', 'text-anchor="middle"')}
+        <rect x="256" y="84" width="84" height="34" rx="12" fill="#fff" fill-opacity=".14"/>
+        ${svgText(298, 108, 19, 'Hola', 'Georgia,serif', 'text-anchor="middle"')}`,
+        `<rect x="350" y="38" width="118" height="46" rx="15" fill="${GOLD}" fill-opacity=".92" stroke="none"/><path d="M440 84l8 16l-26-16z" ${ACC}/>
+         ${svgText(409, 70, 22, 'Bonjour', 'Georgia,serif', 'text-anchor="middle"', '#1d2740')}`),
+
       default: () => {
         let dots = '';
         for (let x = 220; x <= 470; x += 24) for (let y = 20; y <= 120; y += 24) dots += `<circle cx="${x}" cy="${y}" r="2.5" ${SOLID}/>`;
@@ -751,22 +850,33 @@
 
     // first match wins, so the specific ones (Physics II = electricity) come before the general ones
     const THEMES = [
-      [/arabic/i, 'arabic'],
-      [/physic\w*\s*(ii\b|2\b)|electr|circuit|magnet/i, 'electric'],
-      [/physic|quantum|nuclear/i, 'atom'],
-      [/chem|organic/i, 'chem'],
-      [/fluid|hydraul/i, 'fluid'],
-      [/thermo|heat|combustion/i, 'thermo'],
-      [/mechanic|dynamic|statics|kinematic|machine|manufactur|workshop|robot/i, 'gears'],
-      [/draw|graphic|\bcad\b|autocad|design/i, 'drawing'],
-      [/english|writing|composition|literature|communication|language/i, 'english'],
-      [/statistic|probab|data analy/i, 'stats'],
-      [/math|calculus|algebra|geometr|differential|numerical|trigon/i, 'math'],
-      [/program|comput|coding|software|informat|algorithm/i, 'code'],
-      [/material|metal|crystal|polymer|ceramic/i, 'lattice'],
-      [/\bbio|genetic|physiolog/i, 'dna'],
-      [/econom|manage|business|account|financ|market/i, 'econ'],
-      [/astro|space|aero|satellite/i, 'space'],
+      [/arabic|عرب|نحو|بلاغة/i, 'arabic'],
+      [/machine learning|artificial intel|data science|data struct/i, 'code'],
+      [/physic\w*\s*(ii\b|2\b)|electr|circuit|magnet|كهرب|دوائر/i, 'electric'],
+      [/physic|quantum|nuclear|فيزياء/i, 'atom'],
+      [/chem|organic|كيمياء/i, 'chem'],
+      [/fluid|hydraul|موائع/i, 'fluid'],
+      [/\bheat|thermo|combustion|حرار/i, 'thermo'],
+      [/mechanic|dynamic|statics|kinematic|machine|manufactur|workshop|robot|ميكانيك/i, 'gears'],
+      [/draw|graphic|\bcad\b|autocad|design|رسم/i, 'drawing'],
+      [/french|german|spanish|italian|chinese|japanese|turkish|russian|translation|linguistic/i, 'lang'],
+      [/program|comput|coding|software|informat|algorithm|برمج|حاسب|حاسوب/i, 'code'],
+      [/english|writing|composition|literature|communication|language|انجليز|إنجليز/i, 'english'],
+      [/statistic|probab|data analy|إحصاء|احصاء|احتمال/i, 'stats'],
+      [/math|calculus|algebra|geometr|differential|numerical|trigon|رياضيات|تفاضل|تكامل|جبر/i, 'math'],
+      [/histor|archaeolog|ancient|civiliz|تاريخ|حضارة/i, 'history'],
+      [/\blaws?\b|legal|legislat|constitution|jurisprud|قانون|حقوق/i, 'law'],
+      [/medic|nurs|pharm|anatom|clinic|dental|surgery|\bhealth|صيدل|تمريض|(^|\s)طب(\s|$)/i, 'medical'],
+      [/psycholog|neuro|cogniti|behavio|نفس/i, 'psych'],
+      [/geograph|geolog|environment|climate|\bearth|جغراف|جيولوج|بيئة/i, 'geo'],
+      [/music|موسيق/i, 'music'],
+      [/\barts?\b|paint|illustrat|photograph|film|theat|cinema|(^|\s)فن(ون)?(\s|$)/i, 'art'],
+      [/civil|architect|construct|bridge|urban|survey|structural|concrete|مدني|معمار|عمارة|إنشاء/i, 'civil'],
+      [/sociolog|politic|anthropolog|\bsocial|government|international relations|اجتماع|سياس/i, 'society'],
+      [/material|metal|crystal|polymer|ceramic|مواد|معادن/i, 'lattice'],
+      [/\bbio|genetic|physiolog|أحياء|احياء|بيولوج/i, 'dna'],
+      [/econom|manage|business|account|financ|market|اقتصاد|إدارة|ادارة|محاسبة/i, 'econ'],
+      [/astro|space|aero|satellite|فلك|فضاء/i, 'space'],
     ];
     const artCache = {};
     const artFor = (text) => {
@@ -1499,7 +1609,7 @@
     new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 200); })
       .observe(document.body, { childList: true, subtree: true });
     run();
-    LOG('v5.2 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
+    LOG('v5.3 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
   }
 
   /* =====================================================

@@ -4,8 +4,8 @@
 // @author       Empowzi
 // @license      Copyright 2026 Empowzi. All rights reserved.
 // @namespace    https://tampermonkey.net/
-// @version      5.0
-// @description  Clean UI, dark mode, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts
+// @version      5.3
+// @description  Clean UI, dark mode, subject artwork on course cards, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts
 // @match        *://*/*
 // @noframes
 // @connect      e-learning.msa.edu.eg
@@ -117,6 +117,16 @@
         content: ""; position: absolute; right: -30px; top: -40px;
         width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12);
       }
+      /* subject artwork behind the header (fades out behind the title text) */
+      .cp-head::before {
+        content: ""; position: absolute; inset: 0; pointer-events: none;
+        background: var(--bg) right center / auto 110% no-repeat;
+        -webkit-mask-image: linear-gradient(90deg, transparent 18%, #000 50%);
+        mask-image: linear-gradient(90deg, transparent 18%, #000 50%);
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,.25));
+        transition: transform .6s ease;
+      }
+      .cp-card:hover .cp-head::before { transform: scale(1.1) translateX(-8px); }
       .cp-left { display: flex; align-items: center; gap: 12px; z-index: 1; min-width: 0; flex: 1 1 0; }
       .cp-txt { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
       .cp-subcode {
@@ -132,10 +142,12 @@
         font-size: .95rem; font-weight: 700; line-height: 1.25; text-shadow: 0 1px 3px rgba(0,0,0,.25);
         overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: normal; overflow-wrap: normal;
       }
+      /* category badge sits in the bottom-right corner so it never covers the artwork */
       .cp-badge {
-        z-index: 1; font-size: .72rem; font-weight: 600; background: rgba(255,255,255,.22);
-        padding: 3px 10px; border-radius: 999px; max-width: 34%; flex: 0 1 auto; min-width: 0;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        position: absolute; right: 12px; bottom: 10px; z-index: 1;
+        font-size: .68rem; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+        max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        background: rgba(0,0,0,.3); backdrop-filter: blur(4px);
       }
       .cp-card .card-body { padding: 14px 16px 6px !important; flex: 1; }
       .cp-card .coursename, .cp-card a.aalink {
@@ -237,6 +249,13 @@
       .cp-hero-tip { font-size: .92rem; opacity: .92; margin-top: 4px; }
       .cp-hero-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; position: relative; z-index: 1; }
       .cp-hero-chip { background: rgba(255,255,255,.2); padding: 5px 13px; border-radius: 999px; font-size: .84rem; font-weight: 600; }
+      /* subject artwork behind the course banner */
+      .cp-hero-art {
+        position: absolute; inset: 0; pointer-events: none;
+        background: var(--bg) right center / auto 120% no-repeat;
+        -webkit-mask-image: linear-gradient(90deg, transparent 25%, #000 60%);
+        mask-image: linear-gradient(90deg, transparent 25%, #000 60%);
+      }
 
       /* ---------- week / section cards ---------- */
       body.path-course-view .course-content li.section.course-section {
@@ -516,6 +535,246 @@
     const iconFor = (text) => (ICONS.find(([re]) => re.test(text)) || [0, '📘'])[1];
 
     /* =====================================================
+       SUBJECT ARTWORK v2 (SVG drawn behind each course header)
+       White line-art + gold accent layer, brighter and bolder
+    ===================================================== */
+    const AW = 480, AH = 130;
+    const GOLD = '#ffd166';
+    const SOLID = 'fill="#fff" fill-opacity=".4" stroke="none"';
+    const ACC = `fill="${GOLD}" stroke="none"`;
+    const ACCS = `fill="none" stroke="${GOLD}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"`;
+    // inner = white line art (60% opacity), acc = gold highlights drawn on top
+    const svgWrap = (inner, acc = '') =>
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${AW} ${AH}">` +
+      `<g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".6">${inner}</g>` +
+      `<g>${acc}</g></svg>`;
+    const svgText = (x, y, size, str, font = 'Georgia,serif', extra = '', fill = '#fff') =>
+      `<text x="${x}" y="${y}" font-size="${size}" font-family="${font}" fill="${fill}" stroke="none" ${extra}>${str}</text>`;
+    const wave = (x0, y0, amp, wl, len, ph = 0, attr = '') => {
+      let d = '';
+      for (let x = 0; x <= len; x += 4) {
+        const y = y0 + amp * Math.sin((x / wl) * Math.PI * 2 + ph);
+        d += (x ? 'L' : 'M') + (x0 + x).toFixed(1) + ' ' + y.toFixed(1);
+      }
+      return `<path d="${d}" ${attr}/>`;
+    };
+    const gearPath = (cx, cy, r, n, t, attr = '') => {
+      const pts = [];
+      for (let i = 0; i < n * 4; i++) {
+        const a = (i / (n * 4)) * Math.PI * 2;
+        const rr = i % 4 < 2 ? r + t : r;
+        pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)}`);
+      }
+      return `<path d="M${pts.join('L')}Z" ${attr}/>`;
+    };
+    const starPath = (cx, cy, R, r, n, attr = '') => {
+      const pts = [];
+      for (let i = 0; i < n * 2; i++) {
+        const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 ? r : R;
+        pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)}`);
+      }
+      return `<path d="M${pts.join('L')}Z" ${attr}/>`;
+    };
+    // point on a rotated ellipse (for electrons)
+    const orb = (cx, cy, rx, ry, rot, t) => {
+      const a = (rot * Math.PI) / 180, x = rx * Math.cos(t), y = ry * Math.sin(t);
+      return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)];
+    };
+
+    const ART = {
+      // Physics II: bar magnet with field lines + lightning bolt
+      electric: () => svgWrap(`
+        <path d="M320 65C352 8 218 8 250 65"/><path d="M320 65C352 122 218 122 250 65"/>
+        <path d="M326 65C378 -6 192 -6 244 65" opacity=".6"/><path d="M326 65C378 136 192 136 244 65" opacity=".6"/>
+        <rect x="250" y="53" width="35" height="24" ${SOLID}/><rect x="285" y="53" width="35" height="24"/>
+        ${svgText(260, 71, 16, 'N', 'Arial,sans-serif', 'font-weight="700"')}${svgText(296, 71, 16, 'S', 'Arial,sans-serif', 'font-weight="700"')}
+        ${wave(344, 114, 6, 34, 126)}`,
+        `<path d="M425 4L388 72H414L398 126L450 48H422L438 4Z" ${ACC}/>
+         <circle cx="366" cy="28" r="3.5" ${ACC}/><circle cx="468" cy="96" r="4" ${ACC}/><circle cx="352" cy="100" r="3" ${ACC}/>`),
+
+      // Physics: atom with orbiting electrons
+      atom: () => svgWrap(`
+        <g transform="translate(370 65)"><ellipse rx="70" ry="24"/><ellipse rx="70" ry="24" transform="rotate(60)"/>
+        <ellipse rx="70" ry="24" transform="rotate(120)"/></g>
+        <circle cx="370" cy="65" r="56" stroke-dasharray="2 7"/>
+        ${svgText(206, 112, 24, 'E=mc&#178;', 'Georgia,serif', 'font-style="italic"')}`,
+        `<circle cx="370" cy="65" r="11" ${ACC}/>` +
+        [[0, .6], [60, 2.3], [120, 4.1], [0, 3.8]].map(([r, t]) => {
+          const [x, y] = orb(370, 65, 70, 24, r, t);
+          return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" ${ACC}/>`;
+        }).join('')),
+
+      // Chemistry: benzene rings, bubbling flask, formula
+      chem: () => svgWrap(`
+        <path d="M339 73L320 84 301 73 301 51 320 40 339 51Z"/><path d="M377 73L358 84 339 73 339 51 358 40 377 51Z"/>
+        <path d="M358 40v-18M301 73l-18 10M320 84v16"/>
+        <path d="M410 18v30L388 92a8 8 0 0 0 7 12h50a8 8 0 0 0 7-12L430 48V18M404 18h32"/>
+        <circle cx="412" cy="92" r="4"/><circle cx="428" cy="86" r="3"/><circle cx="438" cy="96" r="2.5"/>
+        ${svgText(206, 112, 26, 'H&#8322;O', 'Georgia,serif')}`,
+        `<path d="M395 78H445L452 92a8 8 0 0 1-7 12H395a8 8 0 0 1-7-12Z" fill="${GOLD}" fill-opacity=".85" stroke="none"/>
+         <circle cx="358" cy="22" r="6" ${ACC}/><circle cx="283" cy="83" r="6" ${ACC}/><circle cx="320" cy="100" r="6" ${ACC}/>
+         <circle cx="420" cy="38" r="4" ${ACCS}/><circle cx="426" cy="24" r="3" ${ACCS}/><circle cx="418" cy="12" r="2.5" ${ACCS}/>`),
+
+      // Fluids: flowing streamlines, ripples, droplet
+      fluid: () => svgWrap(`
+        ${wave(200, 46, 9, 60, 230)}${wave(200, 70, 9, 60, 230, 1)}${wave(200, 94, 9, 60, 230, 2)}${wave(200, 118, 9, 60, 230, 3)}
+        <ellipse cx="452" cy="104" rx="14" ry="5"/><ellipse cx="452" cy="104" rx="26" ry="9"/><ellipse cx="452" cy="104" rx="38" ry="13"/>
+        <circle cx="236" cy="28" r="5"/><circle cx="256" cy="18" r="3"/><circle cx="222" cy="14" r="3"/>`,
+        `<path d="M440 8c14 20 22 30 22 42a22 22 0 0 1-44 0c0-12 8-22 22-42z" ${ACC}/>
+         <path d="M428 52a12 12 0 0 0 8 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>`),
+
+      // Thermo: flame, thermometer, rising heat
+      thermo: () => svgWrap(`
+        <rect x="330" y="18" width="14" height="66" rx="7"/><circle cx="337" cy="96" r="14"/>
+        <path d="M350 30h8M350 44h8M350 58h8M350 72h8"/>
+        <path d="M232 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/><path d="M262 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/>
+        <path d="M292 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/>`,
+        `<path d="M420 8c8 22 30 32 30 60a30 30 0 0 1-60 0c0-16 8-26 14-34 2 10 8 14 12 14-4-18-2-30 4-40z" ${ACC}/>
+         <path d="M420 62c4 10 12 14 12 24a12 12 0 0 1-24 0c0-6 4-10 6-14 2 4 4 6 6 6-2-6-1-10 0-16z" fill="#fff" fill-opacity=".85" stroke="none"/>
+         <rect x="333" y="46" width="8" height="42" rx="3" ${ACC}/><circle cx="337" cy="96" r="10" ${ACC}/>`),
+
+      // Mechanics: meshing gears, one golden
+      gears: () => svgWrap(`
+        ${gearPath(330, 66, 34, 10, 9, 'fill="#fff" fill-opacity=".2"')}<circle cx="330" cy="66" r="14"/>
+        ${gearPath(386, 36, 20, 8, 7)}<circle cx="386" cy="36" r="7"/>
+        ${gearPath(446, 78, 18, 7, 6, 'fill="#fff" fill-opacity=".2"')}<circle cx="446" cy="78" r="7"/>
+        <path d="M232 112a44 44 0 0 1-8-42m0 0l-3 12m3-12l12 4"/>
+        <path d="M206 30l14 8-14 8 14 8-14 8"/>`,
+        `${gearPath(377, 100, 16, 6, 6, ACC)}<circle cx="377" cy="100" r="5" fill="#1d2740" stroke="none"/>
+         <circle cx="330" cy="66" r="5" ${ACC}/>`),
+
+      // Engineering drawing: blueprint grid, isometric cube, dimension lines, compass
+      drawing: () => {
+        let g = '';
+        for (let x = 200; x <= 480; x += 20) g += `M${x} 0V130`;
+        for (let y = 10; y <= 130; y += 20) g += `M200 ${y}H480`;
+        return svgWrap(`
+          <path d="${g}" stroke-width="1" opacity=".4"/>
+          <path d="M390 36l34 17-34 17-34-17z" fill="#fff" fill-opacity=".4"/>
+          <path d="M356 53l34 17v38l-34-17z" fill="#fff" fill-opacity=".15"/>
+          <path d="M424 53l-34 17v38l34-17z" fill="#fff" fill-opacity=".27"/>
+          <path d="M236 116h96M236 108v16M332 108v16M244 112l-8 4 8 4M324 112l8 4-8 4"/>`,
+          `<circle cx="452" cy="40" r="20" ${ACCS}/><path d="M422 40h60M452 10v60" fill="none" stroke="${GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="7 3 2 3"/>
+           <circle cx="452" cy="40" r="3.5" ${ACC}/>
+           <path d="M236 40l50 0l-50 46z" ${ACCS}/>`);
+      },
+
+      // English / research writing: open book, pencil, magnifier
+      english: () => svgWrap(`
+        <path d="M215 44Q272 24 330 48V110Q272 88 215 106Z" fill="#fff" fill-opacity=".14"/>
+        <path d="M330 48Q388 24 445 44V106Q388 88 330 110Z" fill="#fff" fill-opacity=".14"/>
+        <path d="M230 60h84M230 74h84M230 88h66M346 60h84M346 74h84M346 88h60"/>`,
+        `<g transform="rotate(-38 420 70)"><rect x="388" y="62" width="62" height="14" rx="2" ${ACC}/>
+          <path d="M450 62l18 7-18 7z" fill="#fff" stroke="none"/><rect x="388" y="62" width="10" height="14" fill="#fff" fill-opacity=".7" stroke="none"/></g>
+         <circle cx="262" cy="24" r="14" ${ACCS}/><path d="M272 34l14 14" fill="none" stroke="${GOLD}" stroke-width="4" stroke-linecap="round"/>
+         ${svgText(396, 40, 56, '&#8221;', 'Georgia,serif', '', GOLD)}`),
+
+      // Arabic: calligraphy, 8-point star, crescent
+      arabic: () => svgWrap(`
+        ${svgText(290, 92, 70, '&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;', 'Tahoma,Arial,sans-serif', 'text-anchor="middle"')}
+        ${starPath(430, 70, 36, 24, 8)}<circle cx="430" cy="70" r="10"/>
+        <path d="M214 118h150" stroke-dasharray="3 6"/>`,
+        `<path d="M452 10a22 22 0 1 0 12 36a18 18 0 1 1-12-36z" ${ACC}/><circle cx="430" cy="70" r="5" ${ACC}/>`),
+
+      // Math: axes, golden sine curve, key symbols
+      math: () => svgWrap(`
+        <path d="M214 14v104M204 66h270"/>
+        ${svgText(226, 48, 40, '&#8721;')}${svgText(296, 114, 44, '&#8747;')}${svgText(374, 46, 38, '&#960;')}
+        ${svgText(420, 114, 40, '&#8734;')}${svgText(440, 50, 26, 'x&#178;')}`,
+        `${wave(214, 66, 26, 90, 256, 0, ACCS)}<circle cx="259" cy="40" r="5" ${ACC}/><circle cx="349" cy="92" r="5" ${ACC}/>`),
+
+      // Statistics: bell curve + histogram + scatter
+      stats: () => {
+        let bars = '';
+        [16, 34, 60, 80, 60, 34, 16].forEach((h, i) => { bars += `<rect x="${246 + i * 28}" y="${112 - h}" width="24" height="${h}" rx="3" fill="#fff" fill-opacity=".18"/>`; });
+        return svgWrap(`${bars}<path d="M342 12v100" stroke-dasharray="4 5"/>`,
+          `<path d="M214 112C270 112 290 24 342 24S414 112 470 112" ${ACCS}/>
+           <circle cx="300" cy="46" r="4" ${ACC}/><circle cx="388" cy="52" r="4" ${ACC}/><circle cx="342" cy="24" r="5.5" ${ACC}/>`);
+      },
+
+      // Programming: code editor window
+      code: () => svgWrap(`
+        <rect x="206" y="14" width="150" height="104" rx="10" fill="#fff" fill-opacity=".1"/><path d="M206 36h150"/>
+        <circle cx="220" cy="25" r="3.5"/><circle cx="234" cy="25" r="3.5"/><circle cx="248" cy="25" r="3.5"/>
+        <rect x="220" y="48" width="70" height="7" rx="3.5"/><rect x="234" y="64" width="96" height="7" rx="3.5"/>
+        <rect x="234" y="80" width="56" height="7" rx="3.5"/><rect x="220" y="96" width="80" height="7" rx="3.5"/>
+        ${svgText(384, 112, 16, '0110 1001', 'Consolas,monospace')}`,
+        `${svgText(372, 80, 58, '&lt;/&gt;', 'Consolas,monospace', 'font-weight="700"', GOLD)}
+         <rect x="304" y="96" width="9" height="14" ${ACC}/>`),
+
+      // Materials: crystal lattice with highlighted atoms
+      lattice: () => {
+        let s = '';
+        const rows = 5, cols = 7;
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          const x = 232 + c * 34 + (r % 2 ? 17 : 0), y = 22 + r * 24;
+          s += `<circle cx="${x}" cy="${y}" r="5" ${SOLID}/>`;
+          if (c < cols - 1) s += `<path d="M${x} ${y}h34"/>`;
+          if (r < rows - 1) s += `<path d="M${x} ${y}l17 24M${x} ${y}l-17 24"/>`;
+        }
+        return svgWrap(s, `<circle cx="402" cy="22" r="7.5" ${ACC}/><circle cx="351" cy="46" r="7.5" ${ACC}/><circle cx="317" cy="94" r="7.5" ${ACC}/>`);
+      },
+
+      // Biology: DNA double helix
+      dna: () => {
+        let rungs = '', balls = '';
+        for (let x = 0; x <= 270; x += 18) {
+          const a = 65 + 24 * Math.sin((x / 70) * Math.PI * 2), b = 65 + 24 * Math.sin((x / 70) * Math.PI * 2 + Math.PI);
+          rungs += `<path d="M${200 + x} ${a.toFixed(1)}V${b.toFixed(1)}" stroke-width="1.8"/>`;
+          balls += `<circle cx="${200 + x}" cy="${a.toFixed(1)}" r="4.5" ${ACC}/><circle cx="${200 + x}" cy="${b.toFixed(1)}" r="4.5" fill="#fff" fill-opacity=".9" stroke="none"/>`;
+        }
+        return svgWrap(`${wave(200, 65, 24, 70, 270)}${wave(200, 65, 24, 70, 270, Math.PI)}${rungs}`, balls);
+      },
+
+      // Economics: growing bars, trend arrow, coin
+      econ: () => {
+        let bars = '';
+        [24, 40, 58, 78, 98].forEach((h, i) => { bars += `<rect x="${236 + i * 36}" y="${116 - h}" width="24" height="${h}" rx="3" fill="#fff" fill-opacity=".18"/>`; });
+        return svgWrap(bars, `<path d="M236 80L290 64 330 68 380 42 436 22" ${ACCS}/><path d="M422 20l16 2-6 15" ${ACCS}/>
+          <circle cx="452" cy="94" r="20" ${ACCS}/>${svgText(452, 104, 28, '$', 'Georgia,serif', 'text-anchor="middle"', GOLD)}`);
+      },
+
+      // Space / aero: ringed planet and stars
+      space: () => svgWrap(`
+        <ellipse cx="380" cy="66" rx="58" ry="12" transform="rotate(-20 380 66)"/>
+        <path d="M230 98v12M224 104h12M300 22v10M295 27h10M452 30v10M447 35h10"/>`,
+        `<circle cx="380" cy="66" r="26" ${ACC}/><circle cx="262" cy="40" r="8" ${ACC}/>
+         <circle cx="446" cy="106" r="5" ${ACC}/><circle cx="330" cy="108" r="2.5" ${ACC}/><circle cx="470" cy="60" r="2.5" ${ACC}/>`),
+
+      default: () => {
+        let dots = '';
+        for (let x = 220; x <= 470; x += 24) for (let y = 20; y <= 120; y += 24) dots += `<circle cx="${x}" cy="${y}" r="2.5" ${SOLID}/>`;
+        return svgWrap(`${dots}<circle cx="450" cy="30" r="64"/>`, `<circle cx="450" cy="30" r="40" ${ACCS}/><circle cx="450" cy="30" r="7" ${ACC}/>`);
+      },
+    };
+
+    // first match wins, so the specific ones (Physics II = electricity) come before the general ones
+    const THEMES = [
+      [/arabic/i, 'arabic'],
+      [/physic\w*\s*(ii\b|2\b)|electr|circuit|magnet/i, 'electric'],
+      [/physic|quantum|nuclear/i, 'atom'],
+      [/chem|organic/i, 'chem'],
+      [/fluid|hydraul/i, 'fluid'],
+      [/thermo|heat|combustion/i, 'thermo'],
+      [/mechanic|dynamic|statics|kinematic|machine|manufactur|workshop|robot/i, 'gears'],
+      [/draw|graphic|\bcad\b|autocad|design/i, 'drawing'],
+      [/english|writing|composition|literature|communication|language/i, 'english'],
+      [/statistic|probab|data analy/i, 'stats'],
+      [/math|calculus|algebra|geometr|differential|numerical|trigon/i, 'math'],
+      [/program|comput|coding|software|informat|algorithm/i, 'code'],
+      [/material|metal|crystal|polymer|ceramic/i, 'lattice'],
+      [/\bbio|genetic|physiolog/i, 'dna'],
+      [/econom|manage|business|account|financ|market/i, 'econ'],
+      [/astro|space|aero|satellite/i, 'space'],
+    ];
+    const artCache = {};
+    const artFor = (text) => {
+      const k = (THEMES.find(([re]) => re.test(text)) || [0, 'default'])[1];
+      return artCache[k] || (artCache[k] = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(ART[k]())}")`);
+    };
+
+    /* =====================================================
        HELPERS
     ===================================================== */
     const hash = (s) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -619,6 +878,7 @@
         const head = document.createElement('div');
         head.className = 'cp-head';
         head.style.setProperty('--h', hash(first || cat || raw) % 360);
+        head.style.setProperty('--bg', artFor(name + ' ' + raw));
 
         const left = document.createElement('div'); left.className = 'cp-left';
         const ic = document.createElement('div'); ic.className = 'cp-icon'; ic.textContent = iconFor(raw);
@@ -746,6 +1006,7 @@
       }
       hero.dataset.sig = sig;
       hero.style.setProperty('--h', hash(name) % 360);
+      hero.style.setProperty('--bg', artFor(name));
       hero.textContent = '';
 
       const top = el('div', 'cp-hero-top');
@@ -770,7 +1031,7 @@
         const nm = next.name.length > 38 ? next.name.slice(0, 36) + '…' : next.name;
         chips.append(el('span', 'cp-hero-chip', `🎯 Next: ${nm} · ${rel(next.ts - Date.now())} left`));
       }
-      hero.append(top, chips);
+      hero.append(el('div', 'cp-hero-art'), top, chips);
     }
 
     /* ---------- submission status (assignments) ---------- */
@@ -1238,7 +1499,7 @@
     new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 200); })
       .observe(document.body, { childList: true, subtree: true });
     run();
-    LOG('v5.0 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
+    LOG('v5.2 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
   }
 
   /* =====================================================

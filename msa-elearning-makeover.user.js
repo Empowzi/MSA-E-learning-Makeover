@@ -4,7 +4,7 @@
 // @author       Empowzi
 // @license      Copyright 2026 Empowzi. All rights reserved.
 // @namespace    https://tampermonkey.net/
-// @version      5.4
+// @version      5.6
 // @description  Clean UI, dark mode, subject artwork on course cards, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts
 // @match        *://*/*
 // @noframes
@@ -256,6 +256,53 @@
         -webkit-mask-image: linear-gradient(90deg, transparent 25%, #000 60%);
         mask-image: linear-gradient(90deg, transparent 25%, #000 60%);
       }
+
+      /* ================= SUBJECT PATTERNS: every course gets its own themed pattern =================
+         Per-course variables (set from JS): --pat tile image, --p1/--p2 background colours,
+         --acc accent colour (r,g,b), --dk darkest shade (r,g,b) used for the title plate. */
+      /* course card header: pattern covers the whole header, title sits in a frosted plate */
+      .cp-head.cp-pat { background: linear-gradient(135deg, var(--p1), var(--p2)); }
+      .cp-head.cp-pat::before {
+        background: var(--pat) 0 0 / 130px 130px repeat;
+        -webkit-mask-image: none; mask-image: none; filter: none; opacity: .95;
+        transition: background-position 1.4s ease;
+      }
+      .cp-card:hover .cp-head.cp-pat::before { transform: none; background-position: 46px 24px; }
+      .cp-head.cp-pat::after {
+        right: 0; top: 0; width: 100%; height: 100%; border-radius: 0;
+        background: radial-gradient(ellipse at 26% 50%, rgba(var(--dk), .8), rgba(var(--dk), .3) 60%, transparent 85%);
+      }
+      .cp-head.cp-pat .cp-left {
+        flex: 0 1 auto; max-width: 74%; padding: 8px 14px 8px 8px; border-radius: 16px;
+        background: rgba(var(--dk), .66); backdrop-filter: blur(5px);
+        box-shadow: inset 0 0 0 1px rgba(var(--acc), .45);
+      }
+      .cp-head.cp-pat .cp-icon {
+        width: 42px; height: 42px; font-size: 23px; border-radius: 12px;
+        background: rgba(var(--acc), .2); box-shadow: inset 0 0 0 1px rgba(var(--acc), .5);
+      }
+      .cp-head.cp-pat .cp-subcode { color: rgb(var(--acc)); opacity: 1; }
+      .cp-head.cp-pat .cp-badge {
+        background: rgba(var(--dk), .75); color: rgb(var(--acc)); box-shadow: inset 0 0 0 1px rgba(var(--acc), .4);
+      }
+      /* course page banner */
+      .cp-hero.cp-pat { background: linear-gradient(135deg, var(--p1), var(--p2)); box-shadow: 0 10px 26px rgba(var(--dk), .5); }
+      .cp-hero.cp-pat::before, .cp-hero.cp-pat::after { display: none; }
+      .cp-hero.cp-pat .cp-hero-art {
+        background: var(--pat) 0 0 / 170px 170px repeat;
+        -webkit-mask-image: none; mask-image: none;
+      }
+      .cp-hero.cp-pat .cp-hero-art::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(90deg, rgba(var(--dk), .78), rgba(var(--dk), .28) 55%, transparent);
+      }
+      .cp-hero.cp-pat .cp-hero-top {
+        width: fit-content; max-width: 100%; padding: 10px 18px 10px 10px; border-radius: 20px;
+        background: rgba(var(--dk), .66); backdrop-filter: blur(5px);
+        box-shadow: inset 0 0 0 1px rgba(var(--acc), .45);
+      }
+      .cp-hero.cp-pat .cp-hero-emoji { background: rgba(var(--acc), .2); box-shadow: inset 0 0 0 1px rgba(var(--acc), .5); }
+      .cp-hero.cp-pat .cp-hero-chip { background: rgba(var(--dk), .62); box-shadow: inset 0 0 0 1px rgba(var(--acc), .38); }
 
       /* ---------- week / section cards ---------- */
       body.path-course-view .course-content li.section.course-section {
@@ -514,375 +561,282 @@
     applyTheme();
 
     /* =====================================================
-       SUBJECT ICONS
+       SUBJECT THEMES
+       Every subject gets its own seamless pattern (drawn from line icons that fit the subject),
+       its own colours and its own emoji. Covers every MSA faculty:
+       Computer Science, Engineering, Pharmacy, Dentistry, Physiotherapy, Biotechnology,
+       Nutrition & Food, Management Sciences, Languages, Mass Communication, Arts & Design,
+       plus the university requirement courses.
+       First match wins, so specific subjects come before general ones.
     ===================================================== */
-    const ICONS = [
-      [/arabic|عرب/i, '📖'],
-      [/machine learning|artificial intel|data science|data struct|program|comput|coding|software|informat|برمج|حاسب|حاسوب/i, '💻'],
-      [/physic|فيزياء/i, '⚛️'],
-      [/chem|كيمياء/i, '🧪'],
-      [/mechanic|dynamic|statics|kinematic|ميكانيك/i, '⚙️'],
-      [/\bcad\b|draw|graphic|رسم/i, '📐'],
-      [/histor|archaeolog|ancient|civiliz|تاريخ|حضارة/i, '🏛️'],
-      [/\blaws?\b|legal|legislat|constitution|jurisprud|قانون|حقوق/i, '⚖️'],
-      [/medic|nurs|pharm|anatom|clinic|dental|surgery|\bhealth|صيدل|تمريض|(^|\s)طب(\s|$)/i, '🩺'],
-      [/psycholog|neuro|cogniti|behavio|نفس/i, '🧠'],
-      [/geograph|geolog|environment|climate|\bearth|جغراف|جيولوج|بيئة/i, '🌍'],
-      [/music|موسيق/i, '🎵'],
-      [/\barts?\b|paint|illustrat|photograph|film|theat|cinema|(^|\s)فن(ون)?(\s|$)/i, '🎨'],
-      [/civil|architect|construct|bridge|urban|survey|structural|concrete|مدني|معمار|عمارة|إنشاء/i, '🏗️'],
-      [/sociolog|politic|anthropolog|\bsocial|government|international relations|اجتماع|سياس/i, '👥'],
-      [/french|german|spanish|italian|chinese|japanese|turkish|russian|translation|linguistic/i, '🗣️'],
-      [/english|writing|research|composition|language|literature|انجليز|إنجليز/i, '✍️'],
-      [/math|calculus|algebra|statistic|probab|رياضيات|تفاضل|تكامل|جبر|إحصاء|احصاء/i, '🧮'],
-      [/electric|circuit|electron|كهرب/i, '⚡'],
-      [/\bheat|thermo|حرار/i, '🔥'],
-      [/fluid|hydraul|موائع/i, '💧'],
-      [/material|metal|مواد|معادن/i, '🧱'],
-      [/\bbio|genetic|أحياء|احياء|بيولوج/i, '🧬'],
-      [/econom|manage|business|account|financ|market|اقتصاد|إدارة|ادارة|محاسبة/i, '📊'],
-    ];
-    const iconFor = (text) => (ICONS.find(([re]) => re.test(text)) || [0, '📘'])[1];
 
-    /* =====================================================
-       SUBJECT ARTWORK v2 (SVG drawn behind each course header)
-       White line-art + gold accent layer, brighter and bolder
-    ===================================================== */
-    const AW = 480, AH = 130;
-    const GOLD = '#ffd166';
-    const SOLID = 'fill="#fff" fill-opacity=".4" stroke="none"';
-    const ACC = `fill="${GOLD}" stroke="none"`;
-    const ACCS = `fill="none" stroke="${GOLD}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"`;
-    // inner = white line art (60% opacity), acc = gold highlights drawn on top
-    const svgWrap = (inner, acc = '') =>
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${AW} ${AH}">` +
-      `<g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".6">${inner}</g>` +
-      `<g>${acc}</g></svg>`;
-    const svgText = (x, y, size, str, font = 'Georgia,serif', extra = '', fill = '#fff') =>
-      `<text x="${x}" y="${y}" font-size="${size}" font-family="${font}" fill="${fill}" stroke="none" ${extra}>${str}</text>`;
-    const wave = (x0, y0, amp, wl, len, ph = 0, attr = '') => {
-      let d = '';
-      for (let x = 0; x <= len; x += 4) {
-        const y = y0 + amp * Math.sin((x / wl) * Math.PI * 2 + ph);
-        d += (x ? 'L' : 'M') + (x0 + x).toFixed(1) + ' ' + y.toFixed(1);
-      }
-      return `<path d="${d}" ${attr}/>`;
-    };
-    const gearPath = (cx, cy, r, n, t, attr = '') => {
-      const pts = [];
+    // Arabic subject: your gold geometric pattern (256px seamless tile, embedded so no network request is needed)
+    const ARABIC_PATTERN = 'data:image/webp;base64,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';
+
+    const gearD = (r, n, t) => {
+      const p = [];
       for (let i = 0; i < n * 4; i++) {
-        const a = (i / (n * 4)) * Math.PI * 2;
-        const rr = i % 4 < 2 ? r + t : r;
-        pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)}`);
+        const a = (i / (n * 4)) * Math.PI * 2, rr = i % 4 < 2 ? r + t : r;
+        p.push(`${(rr * Math.cos(a)).toFixed(1)} ${(rr * Math.sin(a)).toFixed(1)}`);
       }
-      return `<path d="M${pts.join('L')}Z" ${attr}/>`;
-    };
-    const starPath = (cx, cy, R, r, n, attr = '') => {
-      const pts = [];
-      for (let i = 0; i < n * 2; i++) {
-        const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2;
-        const rr = i % 2 ? r : R;
-        pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)}`);
-      }
-      return `<path d="M${pts.join('L')}Z" ${attr}/>`;
-    };
-    // point on a rotated ellipse (for electrons)
-    const orb = (cx, cy, rx, ry, rot, t) => {
-      const a = (rot * Math.PI) / 180, x = rx * Math.cos(t), y = ry * Math.sin(t);
-      return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)];
+      return `<path d="M${p.join('L')}Z"/><circle r="${(r * .35).toFixed(1)}"/>`;
     };
 
-    const ART = {
-      // Physics II: bar magnet with field lines + lightning bolt
-      electric: () => svgWrap(`
-        <path d="M320 65C352 8 218 8 250 65"/><path d="M320 65C352 122 218 122 250 65"/>
-        <path d="M326 65C378 -6 192 -6 244 65" opacity=".6"/><path d="M326 65C378 136 192 136 244 65" opacity=".6"/>
-        <rect x="250" y="53" width="35" height="24" ${SOLID}/><rect x="285" y="53" width="35" height="24"/>
-        ${svgText(260, 71, 16, 'N', 'Arial,sans-serif', 'font-weight="700"')}${svgText(296, 71, 16, 'S', 'Arial,sans-serif', 'font-weight="700"')}
-        ${wave(344, 114, 6, 34, 126)}`,
-        `<path d="M425 4L388 72H414L398 126L450 48H422L438 4Z" ${ACC}/>
-         <circle cx="366" cy="28" r="3.5" ${ACC}/><circle cx="468" cy="96" r="4" ${ACC}/><circle cx="352" cy="100" r="3" ${ACC}/>`),
-
-      // Physics: atom with orbiting electrons
-      atom: () => svgWrap(`
-        <g transform="translate(370 65)"><ellipse rx="70" ry="24"/><ellipse rx="70" ry="24" transform="rotate(60)"/>
-        <ellipse rx="70" ry="24" transform="rotate(120)"/></g>
-        <circle cx="370" cy="65" r="56" stroke-dasharray="2 7"/>
-        ${svgText(206, 112, 24, 'E=mc&#178;', 'Georgia,serif', 'font-style="italic"')}`,
-        `<circle cx="370" cy="65" r="11" ${ACC}/>` +
-        [[0, .6], [60, 2.3], [120, 4.1], [0, 3.8]].map(([r, t]) => {
-          const [x, y] = orb(370, 65, 70, 24, r, t);
-          return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" ${ACC}/>`;
-        }).join('')),
-
-      // Chemistry: benzene rings, bubbling flask, formula
-      chem: () => svgWrap(`
-        <path d="M339 73L320 84 301 73 301 51 320 40 339 51Z"/><path d="M377 73L358 84 339 73 339 51 358 40 377 51Z"/>
-        <path d="M358 40v-18M301 73l-18 10M320 84v16"/>
-        <path d="M410 18v30L388 92a8 8 0 0 0 7 12h50a8 8 0 0 0 7-12L430 48V18M404 18h32"/>
-        <circle cx="412" cy="92" r="4"/><circle cx="428" cy="86" r="3"/><circle cx="438" cy="96" r="2.5"/>
-        ${svgText(206, 112, 26, 'H&#8322;O', 'Georgia,serif')}`,
-        `<path d="M395 78H445L452 92a8 8 0 0 1-7 12H395a8 8 0 0 1-7-12Z" fill="${GOLD}" fill-opacity=".85" stroke="none"/>
-         <circle cx="358" cy="22" r="6" ${ACC}/><circle cx="283" cy="83" r="6" ${ACC}/><circle cx="320" cy="100" r="6" ${ACC}/>
-         <circle cx="420" cy="38" r="4" ${ACCS}/><circle cx="426" cy="24" r="3" ${ACCS}/><circle cx="418" cy="12" r="2.5" ${ACCS}/>`),
-
-      // Fluids: flowing streamlines, ripples, droplet
-      fluid: () => svgWrap(`
-        ${wave(200, 46, 9, 60, 230)}${wave(200, 70, 9, 60, 230, 1)}${wave(200, 94, 9, 60, 230, 2)}${wave(200, 118, 9, 60, 230, 3)}
-        <ellipse cx="452" cy="104" rx="14" ry="5"/><ellipse cx="452" cy="104" rx="26" ry="9"/><ellipse cx="452" cy="104" rx="38" ry="13"/>
-        <circle cx="236" cy="28" r="5"/><circle cx="256" cy="18" r="3"/><circle cx="222" cy="14" r="3"/>`,
-        `<path d="M440 8c14 20 22 30 22 42a22 22 0 0 1-44 0c0-12 8-22 22-42z" ${ACC}/>
-         <path d="M428 52a12 12 0 0 0 8 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>`),
-
-      // Thermo: flame, thermometer, rising heat
-      thermo: () => svgWrap(`
-        <rect x="330" y="18" width="14" height="66" rx="7"/><circle cx="337" cy="96" r="14"/>
-        <path d="M350 30h8M350 44h8M350 58h8M350 72h8"/>
-        <path d="M232 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/><path d="M262 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/>
-        <path d="M292 118c-9-10 9-20 0-30s9-20 0-30s9-20 0-30"/>`,
-        `<path d="M420 8c8 22 30 32 30 60a30 30 0 0 1-60 0c0-16 8-26 14-34 2 10 8 14 12 14-4-18-2-30 4-40z" ${ACC}/>
-         <path d="M420 62c4 10 12 14 12 24a12 12 0 0 1-24 0c0-6 4-10 6-14 2 4 4 6 6 6-2-6-1-10 0-16z" fill="#fff" fill-opacity=".85" stroke="none"/>
-         <rect x="333" y="46" width="8" height="42" rx="3" ${ACC}/><circle cx="337" cy="96" r="10" ${ACC}/>`),
-
-      // Mechanics: meshing gears, one golden
-      gears: () => svgWrap(`
-        ${gearPath(330, 66, 34, 10, 9, 'fill="#fff" fill-opacity=".2"')}<circle cx="330" cy="66" r="14"/>
-        ${gearPath(386, 36, 20, 8, 7)}<circle cx="386" cy="36" r="7"/>
-        ${gearPath(446, 78, 18, 7, 6, 'fill="#fff" fill-opacity=".2"')}<circle cx="446" cy="78" r="7"/>
-        <path d="M232 112a44 44 0 0 1-8-42m0 0l-3 12m3-12l12 4"/>
-        <path d="M206 30l14 8-14 8 14 8-14 8"/>`,
-        `${gearPath(377, 100, 16, 6, 6, ACC)}<circle cx="377" cy="100" r="5" fill="#1d2740" stroke="none"/>
-         <circle cx="330" cy="66" r="5" ${ACC}/>`),
-
-      // Engineering drawing: blueprint grid, isometric cube, dimension lines, compass
-      drawing: () => {
-        let g = '';
-        for (let x = 200; x <= 480; x += 20) g += `M${x} 0V130`;
-        for (let y = 10; y <= 130; y += 20) g += `M200 ${y}H480`;
-        return svgWrap(`
-          <path d="${g}" stroke-width="1" opacity=".4"/>
-          <path d="M390 36l34 17-34 17-34-17z" fill="#fff" fill-opacity=".4"/>
-          <path d="M356 53l34 17v38l-34-17z" fill="#fff" fill-opacity=".15"/>
-          <path d="M424 53l-34 17v38l34-17z" fill="#fff" fill-opacity=".27"/>
-          <path d="M236 116h96M236 108v16M332 108v16M244 112l-8 4 8 4M324 112l8 4-8 4"/>`,
-          `<circle cx="452" cy="40" r="20" ${ACCS}/><path d="M422 40h60M452 10v60" fill="none" stroke="${GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="7 3 2 3"/>
-           <circle cx="452" cy="40" r="3.5" ${ACC}/>
-           <path d="M236 40l50 0l-50 46z" ${ACCS}/>`);
-      },
-
-      // English / research writing: open book, pencil, magnifier
-      english: () => svgWrap(`
-        <path d="M215 44Q272 24 330 48V110Q272 88 215 106Z" fill="#fff" fill-opacity=".14"/>
-        <path d="M330 48Q388 24 445 44V106Q388 88 330 110Z" fill="#fff" fill-opacity=".14"/>
-        <path d="M230 60h84M230 74h84M230 88h66M346 60h84M346 74h84M346 88h60"/>`,
-        `<g transform="rotate(-38 420 70)"><rect x="388" y="62" width="62" height="14" rx="2" ${ACC}/>
-          <path d="M450 62l18 7-18 7z" fill="#fff" stroke="none"/><rect x="388" y="62" width="10" height="14" fill="#fff" fill-opacity=".7" stroke="none"/></g>
-         <circle cx="262" cy="24" r="14" ${ACCS}/><path d="M272 34l14 14" fill="none" stroke="${GOLD}" stroke-width="4" stroke-linecap="round"/>
-         ${svgText(396, 40, 56, '&#8221;', 'Georgia,serif', '', GOLD)}`),
-
-      // Arabic: calligraphy, 8-point star, crescent
-      arabic: () => svgWrap(`
-        ${svgText(290, 92, 70, '&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;', 'Tahoma,Arial,sans-serif', 'text-anchor="middle"')}
-        ${starPath(430, 70, 36, 24, 8)}<circle cx="430" cy="70" r="10"/>
-        <path d="M214 118h150" stroke-dasharray="3 6"/>`,
-        `<path d="M452 10a22 22 0 1 0 12 36a18 18 0 1 1-12-36z" ${ACC}/><circle cx="430" cy="70" r="5" ${ACC}/>`),
-
-      // Math: axes, golden sine curve, key symbols
-      math: () => svgWrap(`
-        <path d="M214 14v104M204 66h270"/>
-        ${svgText(226, 48, 40, '&#8721;')}${svgText(296, 114, 44, '&#8747;')}${svgText(374, 46, 38, '&#960;')}
-        ${svgText(420, 114, 40, '&#8734;')}${svgText(440, 50, 26, 'x&#178;')}`,
-        `${wave(214, 66, 26, 90, 256, 0, ACCS)}<circle cx="259" cy="40" r="5" ${ACC}/><circle cx="349" cy="92" r="5" ${ACC}/>`),
-
-      // Statistics: bell curve + histogram + scatter
-      stats: () => {
-        let bars = '';
-        [16, 34, 60, 80, 60, 34, 16].forEach((h, i) => { bars += `<rect x="${246 + i * 28}" y="${112 - h}" width="24" height="${h}" rx="3" fill="#fff" fill-opacity=".18"/>`; });
-        return svgWrap(`${bars}<path d="M342 12v100" stroke-dasharray="4 5"/>`,
-          `<path d="M214 112C270 112 290 24 342 24S414 112 470 112" ${ACCS}/>
-           <circle cx="300" cy="46" r="4" ${ACC}/><circle cx="388" cy="52" r="4" ${ACC}/><circle cx="342" cy="24" r="5.5" ${ACC}/>`);
-      },
-
-      // Programming: code editor window
-      code: () => svgWrap(`
-        <rect x="206" y="14" width="150" height="104" rx="10" fill="#fff" fill-opacity=".1"/><path d="M206 36h150"/>
-        <circle cx="220" cy="25" r="3.5"/><circle cx="234" cy="25" r="3.5"/><circle cx="248" cy="25" r="3.5"/>
-        <rect x="220" y="48" width="70" height="7" rx="3.5"/><rect x="234" y="64" width="96" height="7" rx="3.5"/>
-        <rect x="234" y="80" width="56" height="7" rx="3.5"/><rect x="220" y="96" width="80" height="7" rx="3.5"/>
-        ${svgText(384, 112, 16, '0110 1001', 'Consolas,monospace')}`,
-        `${svgText(372, 80, 58, '&lt;/&gt;', 'Consolas,monospace', 'font-weight="700"', GOLD)}
-         <rect x="304" y="96" width="9" height="14" ${ACC}/>`),
-
-      // Materials: crystal lattice with highlighted atoms
-      lattice: () => {
-        let s = '';
-        const rows = 5, cols = 7;
-        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-          const x = 232 + c * 34 + (r % 2 ? 17 : 0), y = 22 + r * 24;
-          s += `<circle cx="${x}" cy="${y}" r="5" ${SOLID}/>`;
-          if (c < cols - 1) s += `<path d="M${x} ${y}h34"/>`;
-          if (r < rows - 1) s += `<path d="M${x} ${y}l17 24M${x} ${y}l-17 24"/>`;
-        }
-        return svgWrap(s, `<circle cx="402" cy="22" r="7.5" ${ACC}/><circle cx="351" cy="46" r="7.5" ${ACC}/><circle cx="317" cy="94" r="7.5" ${ACC}/>`);
-      },
-
-      // Biology: DNA double helix
-      dna: () => {
-        let rungs = '', balls = '';
-        for (let x = 0; x <= 270; x += 18) {
-          const a = 65 + 24 * Math.sin((x / 70) * Math.PI * 2), b = 65 + 24 * Math.sin((x / 70) * Math.PI * 2 + Math.PI);
-          rungs += `<path d="M${200 + x} ${a.toFixed(1)}V${b.toFixed(1)}" stroke-width="1.8"/>`;
-          balls += `<circle cx="${200 + x}" cy="${a.toFixed(1)}" r="4.5" ${ACC}/><circle cx="${200 + x}" cy="${b.toFixed(1)}" r="4.5" fill="#fff" fill-opacity=".9" stroke="none"/>`;
-        }
-        return svgWrap(`${wave(200, 65, 24, 70, 270)}${wave(200, 65, 24, 70, 270, Math.PI)}${rungs}`, balls);
-      },
-
-      // Economics: growing bars, trend arrow, coin
-      econ: () => {
-        let bars = '';
-        [24, 40, 58, 78, 98].forEach((h, i) => { bars += `<rect x="${236 + i * 36}" y="${116 - h}" width="24" height="${h}" rx="3" fill="#fff" fill-opacity=".18"/>`; });
-        return svgWrap(bars, `<path d="M236 80L290 64 330 68 380 42 436 22" ${ACCS}/><path d="M422 20l16 2-6 15" ${ACCS}/>
-          <circle cx="452" cy="94" r="20" ${ACCS}/>${svgText(452, 104, 28, '$', 'Georgia,serif', 'text-anchor="middle"', GOLD)}`);
-      },
-
-      // Space / aero: ringed planet and stars
-      space: () => svgWrap(`
-        <ellipse cx="380" cy="66" rx="58" ry="12" transform="rotate(-20 380 66)"/>
-        <path d="M230 98v12M224 104h12M300 22v10M295 27h10M452 30v10M447 35h10"/>`,
-        `<circle cx="380" cy="66" r="26" ${ACC}/><circle cx="262" cy="40" r="8" ${ACC}/>
-         <circle cx="446" cy="106" r="5" ${ACC}/><circle cx="330" cy="108" r="2.5" ${ACC}/><circle cx="470" cy="60" r="2.5" ${ACC}/>`),
-
-      // History: temple, pyramid, sun
-      history: () => svgWrap(`
-        <path d="M232 54L296 24L360 54Z" fill="#fff" fill-opacity=".18"/><path d="M238 58h116"/>
-        <rect x="246" y="64" width="10" height="42"/><rect x="268" y="64" width="10" height="42"/><rect x="290" y="64" width="10" height="42"/>
-        <rect x="312" y="64" width="10" height="42"/><rect x="334" y="64" width="10" height="42"/>
-        <path d="M232 110h128M238 117h116"/>
-        <path d="M392 110L434 56L476 110Z" fill="#fff" fill-opacity=".15"/><path d="M434 56L420 110M406 90h56"/>`,
-        `<circle cx="448" cy="26" r="11" ${ACC}/><circle cx="296" cy="42" r="5" ${ACC}/>
-         <path d="M210 40q8-10 16 0t16 0" ${ACCS.replace('2.6', '2')}/>`),
-
-      // Law: scales of justice
-      law: () => svgWrap(`
-        <path d="M340 22V108M308 112h64M286 34h108"/>
-        <path d="M286 34L264 80M286 34L308 80M394 34L372 80M394 34L416 80"/>
-        ${svgText(206, 98, 54, '&#167;')}`,
-        `<path d="M260 80h52a26 12 0 0 1-52 0z" ${ACC}/><path d="M368 80h52a26 12 0 0 1-52 0z" ${ACC}/>
-         <circle cx="340" cy="16" r="7" ${ACC}/>`),
-
-      // Medical: heartbeat, cross, pill, heart
-      medical: () => svgWrap(`
-        <path d="M200 76h56l10-22 12 52 14-68 12 38h34"/>
-        <path d="M236 14v30M221 29h30" stroke-width="5"/>
-        <g transform="rotate(-35 330 104)"><rect x="300" y="94" width="60" height="22" rx="11" fill="#fff" fill-opacity=".15"/><path d="M330 94v22"/></g>`,
-        `<path d="M440 70C406 50 414 22 434 26C438 27 440 32 440 32C440 32 442 27 446 26C466 22 474 50 440 70Z" ${ACC}/>
-         <circle cx="372" cy="54" r="3.5" ${ACC}/><circle cx="388" cy="84" r="3" ${ACC}/>`),
-
-      // Psychology: brain, idea bulb, thought bubbles
-      psych: () => svgWrap(`
-        <path d="M370 24C336 22 318 44 326 64C316 82 332 104 356 100C364 112 384 112 392 100C416 104 428 82 414 64C422 44 404 22 370 24Z" fill="#fff" fill-opacity=".14"/>
-        <path d="M370 26V100M338 56q10-14 22 0M338 80q12-12 22 0M380 50q12-12 22 0M380 76q12-12 24 0"/>
-        <circle cx="300" cy="34" r="4"/><circle cx="284" cy="22" r="3"/>
-        ${wave(206, 112, 5, 30, 90)}`,
-        `<circle cx="452" cy="36" r="15" ${ACC}/><path d="M446 54h12M448 60h8" fill="none" stroke="${GOLD}" stroke-width="3" stroke-linecap="round"/>
-         <path d="M452 8v6M472 18l-4 4M432 18l4 4M480 36h-6M424 36h6" ${ACCS.replace('2.6', '2.2')}/>`),
-
-      // Geography: globe, mountains, map pin
-      geo: () => svgWrap(`
-        <circle cx="380" cy="66" r="48"/><ellipse cx="380" cy="66" rx="20" ry="48"/><ellipse cx="380" cy="66" rx="38" ry="48" opacity=".6"/>
-        <path d="M332 66h96M340 44h80M340 88h80"/>
-        <path d="M204 112l30-50 20 28 18-24 36 46z" fill="#fff" fill-opacity=".15"/>`,
-        `<path d="M358 52q14-10 24 2t-8 16q-12 4-18-6z" ${ACC}/><path d="M392 76q12-4 16 8t-8 14q-10 0-8-22z" ${ACC}/>
-         <path d="M450 6a11 11 0 0 1 11 11c0 11-11 24-11 24s-11-13-11-24a11 11 0 0 1 11-11z" ${ACC}/><circle cx="450" cy="17" r="4" fill="#1d2740" stroke="none"/>`),
-
-      // Music: staff, notes, sound wave
-      music: () => svgWrap(`
-        <path d="M206 34h260M206 46h260M206 58h260M206 70h260M206 82h260" stroke-width="1.6"/>
-        ${svgText(214, 96, 70, '&#119070;', 'Segoe UI Symbol,Arial,sans-serif')}
-        ${wave(206, 116, 6, 26, 260)}`,
-        `<ellipse cx="290" cy="78" rx="8" ry="6" transform="rotate(-20 290 78)" ${ACC}/><path d="M297 76V32" ${ACCS}/>
-         <ellipse cx="350" cy="64" rx="8" ry="6" transform="rotate(-20 350 64)" ${ACC}/><path d="M357 62V20" ${ACCS}/>
-         <ellipse cx="410" cy="50" rx="8" ry="6" transform="rotate(-20 410 50)" ${ACC}/><path d="M417 48V12" ${ACCS}/>
-         <path d="M357 20L417 12" ${ACCS.replace('2.6', '5')}/>`),
-
-      // Art: palette, brush
-      art: () => svgWrap(`
-        <path d="M300 22C250 22 224 64 248 96C262 114 290 104 292 90C294 80 306 78 318 84C348 100 376 80 376 60C376 40 344 22 300 22Z" fill="#fff" fill-opacity=".14"/>
-        <g transform="rotate(35 430 66)"><rect x="396" y="60" width="76" height="12" rx="6"/><path d="M396 60h-18l-8 6 8 6h18"/></g>`,
-        `<circle cx="268" cy="62" r="8" ${ACC}/><circle cx="292" cy="44" r="8" fill="#ff8fab" stroke="none"/>
-         <circle cx="324" cy="46" r="8" fill="#8ee8ff" stroke="none"/><circle cx="350" cy="66" r="8" fill="#b9f6a5" stroke="none"/>
-         <g transform="rotate(35 430 66)"><path d="M378 60l-8 6 8 6z" ${ACC}/></g>
-         <circle cx="456" cy="106" r="5" ${ACC}/><circle cx="440" cy="116" r="3" ${ACC}/>`),
-
-      // Civil / architecture: skyline + cable bridge
-      civil: () => svgWrap(`
-        <path d="M208 110V68h24v42M238 110V40h28v70M272 110V74h22v42"/>
-        <path d="M246 54h12M246 68h12M246 82h12M216 78h8M216 92h8M278 86h10M278 100h10"/>
-        <path d="M312 98h160M360 98V34M432 98V34M352 34h16M424 34h16"/>
-        <path d="M200 114h280"/>`,
-        `<path d="M360 36L322 98M360 36L396 98M432 36L396 98M432 36L470 98" ${ACCS.replace('2.6', '2')}/>
-         <circle cx="300" cy="24" r="9" ${ACC}/>`),
-
-      // Society / politics: connected people
-      society: () => {
-        const person = (x, y, a = '') => `<g transform="translate(${x} ${y})" ${a}><circle r="9"/><path d="M-17 28a17 15 0 0 1 34 0z"/></g>`;
-        return svgWrap(`
-          <path d="M300 56L380 44L440 82L344 98L300 56M380 44L344 98" stroke-dasharray="4 5" stroke-width="1.8"/>
-          ${person(300, 44)}${person(440, 70)}${person(344, 86)}`,
-          `${person(380, 32, ACC)}<circle cx="424" cy="24" r="12" ${ACC}/><path d="M416 34l-4 10l12-6z" ${ACC}/>`);
-      },
-
-      // Foreign languages: speech bubbles
-      lang: () => svgWrap(`
-        <rect x="214" y="16" width="104" height="40" rx="14" fill="#fff" fill-opacity=".14"/><path d="M240 56l-6 16l24-16"/>
-        ${svgText(266, 44, 22, 'Hello', 'Georgia,serif', 'text-anchor="middle"')}
-        <rect x="256" y="84" width="84" height="34" rx="12" fill="#fff" fill-opacity=".14"/>
-        ${svgText(298, 108, 19, 'Hola', 'Georgia,serif', 'text-anchor="middle"')}`,
-        `<rect x="350" y="38" width="118" height="46" rx="15" fill="${GOLD}" fill-opacity=".92" stroke="none"/><path d="M440 84l8 16l-26-16z" ${ACC}/>
-         ${svgText(409, 70, 22, 'Bonjour', 'Georgia,serif', 'text-anchor="middle"', '#1d2740')}`),
-
-      default: () => {
-        let dots = '';
-        for (let x = 220; x <= 470; x += 24) for (let y = 20; y <= 120; y += 24) dots += `<circle cx="${x}" cy="${y}" r="2.5" ${SOLID}/>`;
-        return svgWrap(`${dots}<circle cx="450" cy="30" r="64"/>`, `<circle cx="450" cy="30" r="40" ${ACCS}/><circle cx="450" cy="30" r="7" ${ACC}/>`);
-      },
+    // line icons, each drawn around (0,0) inside roughly a 40 x 40 box
+    const ICON = {
+      atom: '<ellipse rx="19" ry="7"/><ellipse rx="19" ry="7" transform="rotate(60)"/><ellipse rx="19" ry="7" transform="rotate(120)"/><circle r="3" fill="currentColor"/>',
+      flask: '<path d="M-5-18h10M-3-18v12L-16 14a4 4 0 0 0 3.5 6h25a4 4 0 0 0 3.5-6L3-6v-12M-11 6h22"/>',
+      tube: '<g transform="rotate(25)"><path d="M-5-18h10M-4-18v28a4 4 0 0 0 8 0v-28M-4 2h8"/></g>',
+      gear: gearD(13, 8, 5),
+      bolt: '<path d="M5-20L-10 3h9L-5 20 12-6H3z"/>',
+      code: '<path d="M-8-12L-20 0l12 12M8-12L20 0 8 12M3-16l-6 32"/>',
+      book: '<path d="M0-12Q-10-18-20-14v28Q-10 10 0 16 10 10 20 14v-28Q10-18 0-12zM0-12V16"/>',
+      cap: '<path d="M0-14L-22-5 0 4 22-5zM-12-1v10q12 8 24 0v-10M22-5v12"/>',
+      dna: '<path d="M-10-18C10-8-10 8 10 18M10-18C-10-8 10 8-10 18M-6-12h12M-8 0h16M-6 12h12"/>',
+      cell: '<circle r="17"/><circle cx="-4" cy="-3" r="6"/><circle cx="9" cy="8" r="2" fill="currentColor"/><circle cx="8" cy="-9" r="2" fill="currentColor"/>',
+      microscope: '<path d="M-3-18l8 4-6 16-8-4zM-9 6c-6 2-8 10 4 10h12c8 0 12-6 10-14M-16 18h26"/>',
+      tooth: '<path d="M-13-8c0-9 7-10 13-7 6-3 13-2 13 7 0 9-4 9-5 19-1 6-5 6-6 0-1-4-1-5-2-5s-1 1-2 5c-1 6-5 6-6 0-1-10-5-10-5-19z"/>',
+      pill: '<g transform="rotate(-40)"><rect x="-18" y="-8" width="36" height="16" rx="8"/><path d="M0-8v16"/></g>',
+      cross: '<path d="M-5-17h10v12h12v10H5v12H-5V5h-12V-5h12z"/>',
+      pulse: '<path d="M-20 2h9l4-10 7 20 5-14 3 4h12"/>',
+      heart: '<path d="M0 16C-22 2-16-14-6-13c4 0 6 3 6 5 0-2 2-5 6-5 10-1 16 11-6 24z"/>',
+      runner: '<circle cx="5" cy="-15" r="4"/><path d="M3-9L-3 3l8 5-2 11M-3 3l-11 3M3-9l11 5"/>',
+      chart: '<path d="M-16 16V4M-6 16V-6M4 16V-2M14 16V-14M-20 18h38"/>',
+      trend: '<path d="M-20 12l10-10 8 6 16-18M6-12h10v10"/>',
+      coin: '<circle r="16"/><text y="8" font-size="20" text-anchor="middle" fill="currentColor" stroke="none" font-family="Georgia,serif">$</text>',
+      briefcase: '<rect x="-18" y="-8" width="36" height="24" rx="3"/><path d="M-7-8v-5h14v5M-18 2h36"/>',
+      megaphone: '<path d="M-16-4h8l16-10v28L-8 4h-8zM-8 4l2 12h6"/>',
+      camera: '<rect x="-18" y="-10" width="36" height="26" rx="4"/><circle cy="3" r="7"/><path d="M-8-10l3-5h10l3 5"/>',
+      clapper: '<rect x="-18" y="-4" width="36" height="20"/><path d="M-18-4l36-10M-8-7l-4-6M2-10l-4-6M12-13l-4-6"/>',
+      mic: '<rect x="-6" y="-18" width="12" height="22" rx="6"/><path d="M-12-2a12 12 0 0 0 24 0M0 10v8M-6 18h12"/>',
+      news: '<rect x="-18" y="-14" width="36" height="28" rx="2"/><path d="M-12-6h12M-12 0h12M-12 6h12M6-6h6v12H6z"/>',
+      pen: '<path d="M-14 16l2-8L10-14l6 6L-6 14zM6-10l6 6"/>',
+      palette: '<path d="M0-16C-14-16-20-4-16 6c3 8 12 6 12 0 0-4 4-5 8-3 10 4 16-6 14-12-2-6-10-7-18-7z"/><circle cx="-8" cy="-4" r="2"/><circle cx="0" cy="-9" r="2"/><circle cx="8" cy="-4" r="2"/>',
+      bubble: '<path d="M-18-14h36v22H-2l-10 8V8h-6z"/><path d="M-10-5h20M-10 1h12"/>',
+      globe: '<circle r="17"/><ellipse rx="7" ry="17"/><path d="M-17 0h34M-14-9h28M-14 9h28"/>',
+      scales: '<path d="M0-18v32M-8 16h16M-16-12h32M-16-12l-7 16h14zM16-12l-7 16h14z"/>',
+      temple: '<path d="M-18-8L0-18l18 10zM-14-6v18M-5-6v18M5-6v18M14-6v18M-20 14h40"/>',
+      pyramid: '<path d="M0-16L20 14H-20zM0-16L-6 14M-10 2h20"/>',
+      compass: '<circle r="3"/><path d="M0-3L-12 18M0-3l12 21M-8 8h16M0-3v-12"/>',
+      ruler: '<path d="M-16 16V-16L16 16z"/><path d="M-16 6h6M-16-2h4M-16-10h6"/>',
+      city: '<path d="M-18 16V-2h10v18M-8 16V-16h12v32M4 16V2h12v14M-20 16h40M-4-8h4M-4 0h4M-4 8h4"/>',
+      house: '<path d="M-18 0L0-16l18 16M-14-2v18h28V-2M-4 16v-9h8v9"/>',
+      bridge: '<path d="M-20 6h40M-12 6V-14M12 6V-14M-12-14Q0 4 12-14M-20 6Q-12-4-12-14M20 6Q12-4 12-14M-20 14h40"/>',
+      helmet: '<path d="M-16 6a16 16 0 0 1 32 0zM-20 6h40M-3-10v6"/>',
+      drop: '<path d="M0-18C12-2 14 4 14 8a14 14 0 0 1-28 0c0-4 2-10 14-26z"/>',
+      flame: '<path d="M0-18C4-6 14-2 12 8a12 12 0 0 1-24 0C-12 2-6-2-4-8-2-4 0-6 0-18z"/>',
+      therm: '<rect x="-4" y="-18" width="8" height="26" rx="4"/><circle cy="12" r="7"/><path d="M0-8v18"/>',
+      net: '<circle cx="-14" cy="-8" r="4"/><circle cx="14" cy="-8" r="4"/><circle cy="14" r="4"/><path d="M-10-8h20M-12-4l10 14M12-4L2 10"/>',
+      db: '<ellipse cy="-12" rx="15" ry="5"/><path d="M-15-12v24c0 6 30 6 30 0v-24M-15 0c0 6 30 6 30 0"/>',
+      shield: '<path d="M0-18l15 5v10c0 10-6 15-15 19-9-4-15-9-15-19v-10z"/><path d="M-6 0l4 5 8-10"/>',
+      lock: '<rect x="-12" y="-4" width="24" height="18" rx="3"/><path d="M-7-4v-6a7 7 0 0 1 14 0v6"/>',
+      chip: '<rect x="-11" y="-11" width="22" height="22" rx="2"/><path d="M-6-17v6M0-17v6M6-17v6M-6 11v6M0 11v6M6 11v6M-17-6h6M-17 0h6M-17 6h6M11-6h6M11 0h6M11 6h6"/>',
+      monitor: '<rect x="-18" y="-14" width="36" height="24" rx="3"/><path d="M-6 16h12M0 10v6"/>',
+      phone: '<rect x="-9" y="-17" width="18" height="34" rx="3"/><path d="M-3 12h6"/>',
+      cloud: '<path d="M-12 10a8 8 0 0 1 0-16 11 11 0 0 1 21-2 8 8 0 0 1 3 18z"/>',
+      robot: '<rect x="-14" y="-10" width="28" height="22" rx="4"/><circle cx="-5" cy="0" r="3"/><circle cx="5" cy="0" r="3"/><path d="M0-10v-6M-8 12v4M8 12v4"/>',
+      resistor: '<path d="M-20 0h8l3-8 6 16 6-16 3 8h8"/>',
+      sine: '<path d="M-20 0q5-14 10 0t10 0 10 0 10 0"/>',
+      magnet: '<path d="M-14 16V-2a14 14 0 0 1 28 0v18h-9V-2a5 5 0 0 0-10 0v18z"/>',
+      bulb: '<path d="M-8 8a12 12 0 1 1 16 0c-3 3-3 5-3 8h-10c0-3 0-5-3-8zM-5 20h10"/>',
+      planet: '<circle r="10"/><ellipse rx="20" ry="6" transform="rotate(-20)"/>',
+      leaf: '<path d="M-16 14C-16-6 0-16 16-16 16 0 6 14-16 14zM-16 14L4-6"/>',
+      sun: '<circle r="8"/><path d="M0-18v5M0 13v5M-18 0h5M13 0h5M-13-13l4 4M9 9l4 4M13-13l-4 4M-9 9l-4 4"/>',
+      microbe: '<rect x="-14" y="-6" width="28" height="12" rx="6"/><path d="M-14-2h-5M-14 2h-5M14-2h5M14 2h5M-4-10v4M4-10v4M-4 6v4M4 6v4"/>',
+      virus: '<circle r="9"/><path d="M0-9v-8M0 9v8M-9 0h-8M9 0h8M-6-6l-5-5M6 6l5 5M6-6l5-5M-6 6l-5 5"/>',
+      users: '<circle cx="-8" cy="-8" r="6"/><circle cx="10" cy="-6" r="5"/><path d="M-20 16a12 12 0 0 1 24 0M4 16a9 9 0 0 1 16-4"/>',
+      target: '<circle r="16"/><circle r="9"/><circle r="2.5" fill="currentColor"/>',
+      cart: '<path d="M-20-14h6l4 22h20l4-16H-12"/><circle cx="-6" cy="14" r="2"/><circle cx="10" cy="14" r="2"/>',
+      truck: '<path d="M-20 8V-8h22v16M2-4h10l8 8v4H2"/><circle cx="-10" cy="10" r="3"/><circle cx="10" cy="10" r="3"/>',
+      calc: '<rect x="-12" y="-17" width="24" height="34" rx="3"/><path d="M-7-10h14M-7-2h3M0-2h3M7-2h0M-7 6h3M0 6h3M-7 12h3M0 12h3"/>',
+      doc: '<path d="M-12-17h16l8 8v26h-24zM4-17v8h8M-6-2h12M-6 4h12M-6 10h8"/>',
+      dumbbell: '<path d="M-18-6v12M-12-9v18M12-9v18M18-6v12M-12 0h24"/>',
+      spine: '<rect x="-7" y="-18" width="14" height="7" rx="3"/><rect x="-8" y="-8" width="16" height="7" rx="3"/><rect x="-7" y="2" width="14" height="7" rx="3"/><rect x="-5" y="12" width="10" height="6" rx="3"/>',
+      mask: '<path d="M-16-12h32v12c0 10-8 16-16 16S-16 10-16 0zM-9-4h5M4-4h5M-6 6q6 5 12 0"/>',
+      note: '<path d="M-6 14V-12l16-4v26M-6 14a5 4 0 1 1-.1 0M10 10a5 4 0 1 1-.1 0"/>',
+      flag: '<path d="M-14 18V-16M-14-14h26l-6 8 6 8h-26"/>',
+      hourglass: '<path d="M-10-16h20M-10 16h20M-8-16c0 12 8 12 8 16s-8 4-8 16M8-16c0 12-8 12-8 16s8 4 8 16"/>',
+      pin: '<path d="M0 18C-10 6-14 0-14-6a14 14 0 0 1 28 0c0 6-4 12-14 24z"/><circle cy="-6" r="5"/>',
+      mountain: '<path d="M-20 16L-6-10l8 12 6-8L20 16z"/>',
+      eye: '<path d="M-20 0Q0-18 20 0Q0 18-20 0z"/><circle r="5"/>',
+      firstaid: '<rect x="-16" y="-8" width="32" height="24" rx="3"/><path d="M-6-8v-5h12v5M0 0v10M-5 5h10"/>',
+      apple: '<path d="M0-8C-10-14-18-6-16 4c2 10 8 16 16 12 8 4 14-2 16-12 2-10-6-18-16-12zM0-8c0-5 2-8 6-10"/>',
+      fork: '<path d="M-8-18v12a4 4 0 0 0 8 0v-12M-4-18v34M10-18c-6 4-6 14 0 16v18"/>',
+      lamp: '<path d="M-10-16h20l6 20h-32zM0 4v12M-8 18h16"/>',
+      chair: '<path d="M-8-16v18h16v-18M-12 2h24M-10 2v14M10 2v14"/>',
+      hanger: '<path d="M0-14a4 4 0 1 1 4 4c-2 1-4 2-4 4v3L-18 14h36L0 4"/>',
+      scissors: '<circle cx="-8" cy="12" r="4"/><circle cx="8" cy="12" r="4"/><path d="M-5 9L10-16M5 9L-10-16"/>',
+      search: '<circle cx="-4" cy="-4" r="11"/><path d="M5 5l12 12"/>',
+      curve: '<path d="M-20 14C-10 14-8-14 0-14S10 14 20 14M-22 16h44"/>',
+      dice: '<rect x="-14" y="-14" width="28" height="28" rx="5"/><circle cx="-6" cy="-6" r="2" fill="currentColor"/><circle cx="6" cy="6" r="2" fill="currentColor"/><circle r="2" fill="currentColor"/>',
+      cube: '<path d="M0-18L16-9v18L0 18-16 9V-9zM0 0v18M0 0L16-9M0 0L-16-9"/>',
+      layers: '<path d="M0-16L20-6 0 4-20-6zM-20 2l20 10 20-10M-20 9l20 10 20-10"/>',
+      antenna: '<path d="M0-4v22M-6 18h12M-8-12a11 11 0 0 0 0 16M8-12a11 11 0 0 1 0 16M-14-18a20 20 0 0 0 0 28M14-18a20 20 0 0 1 0 28"/><circle cy="-4" r="2.5" fill="currentColor"/>',
+      pylon: '<path d="M0-18L-10 18M0-18L10 18M-6-4h12M-8 6h16M-14-10h28"/>',
+      turbine: '<path d="M0 0v18M0 0L-3-16M0 0l14 8M0 0L-14 8"/><circle r="2.5" fill="currentColor"/>',
+      theodolite: '<path d="M0-6L-12 18M0-6l12 24M0-6v24"/><rect x="-6" y="-16" width="12" height="10" rx="2"/>',
+      gauge: '<path d="M-18 8a18 18 0 0 1 36 0M0 8L8-8M-18 8h4M18 8h-4M0-10v4"/>',
+      head: '<path d="M-10 16V8c-8-4-10-14-4-22 6-6 18-4 22 4 3 6 1 10-2 13l1 5-6 2v6z"/>',
+      tree: '<circle cy="-13" r="4"/><circle cx="-12" cy="4" r="4"/><circle cx="12" cy="4" r="4"/><path d="M-2-9L-10 0M2-9l8 9M-14 8l-4 8M-10 8l4 8"/>',
+      gamepad: '<rect x="-20" y="-9" width="40" height="22" rx="10"/><path d="M-11-2v8M-15 2h8"/><circle cx="8" cy="0" r="1.5" fill="currentColor"/><circle cx="13" cy="4" r="1.5" fill="currentColor"/>',
     };
 
-    // first match wins, so the specific ones (Physics II = electricity) come before the general ones
-    const THEMES = [
-      [/arabic|عرب|نحو|بلاغة/i, 'arabic'],
-      [/machine learning|artificial intel|data science|data struct/i, 'code'],
-      [/physic\w*\s*(ii\b|2\b)|electr|circuit|magnet|كهرب|دوائر/i, 'electric'],
-      [/physic|quantum|nuclear|فيزياء/i, 'atom'],
-      [/chem|organic|كيمياء/i, 'chem'],
-      [/fluid|hydraul|موائع/i, 'fluid'],
-      [/\bheat|thermo|combustion|حرار/i, 'thermo'],
-      [/mechanic|dynamic|statics|kinematic|machine|manufactur|workshop|robot|ميكانيك/i, 'gears'],
-      [/draw|graphic|\bcad\b|autocad|design|رسم/i, 'drawing'],
-      [/french|german|spanish|italian|chinese|japanese|turkish|russian|translation|linguistic/i, 'lang'],
-      [/program|comput|coding|software|informat|algorithm|برمج|حاسب|حاسوب/i, 'code'],
-      [/english|writing|composition|literature|communication|language|انجليز|إنجليز/i, 'english'],
-      [/statistic|probab|data analy|إحصاء|احصاء|احتمال/i, 'stats'],
-      [/math|calculus|algebra|geometr|differential|numerical|trigon|رياضيات|تفاضل|تكامل|جبر/i, 'math'],
-      [/histor|archaeolog|ancient|civiliz|تاريخ|حضارة/i, 'history'],
-      [/\blaws?\b|legal|legislat|constitution|jurisprud|قانون|حقوق/i, 'law'],
-      [/medic|nurs|pharm|anatom|clinic|dental|surgery|\bhealth|صيدل|تمريض|(^|\s)طب(\s|$)/i, 'medical'],
-      [/psycholog|neuro|cogniti|behavio|نفس/i, 'psych'],
-      [/geograph|geolog|environment|climate|\bearth|جغراف|جيولوج|بيئة/i, 'geo'],
-      [/music|موسيق/i, 'music'],
-      [/\barts?\b|paint|illustrat|photograph|film|theat|cinema|(^|\s)فن(ون)?(\s|$)/i, 'art'],
-      [/civil|architect|construct|bridge|urban|survey|structural|concrete|مدني|معمار|عمارة|إنشاء/i, 'civil'],
-      [/sociolog|politic|anthropolog|\bsocial|government|international relations|اجتماع|سياس/i, 'society'],
-      [/material|metal|crystal|polymer|ceramic|مواد|معادن/i, 'lattice'],
-      [/\bbio|genetic|physiolog|أحياء|احياء|بيولوج/i, 'dna'],
-      [/econom|manage|business|account|financ|market|اقتصاد|إدارة|ادارة|محاسبة/i, 'econ'],
-      [/astro|space|aero|satellite|فلك|فضاء/i, 'space'],
+    // [pattern, emoji, background 1, background 2, accent colour, icons]
+    const SUBJECTS = [
+      // ---------- university requirements ----------
+      [/arabic|عرب|نحو|بلاغة/i, '📖', '#0c4a43', '#062b2c', '#ffd166', 'IMG'],
+      [/egypt\w*\s+(civil|histor|heritage)|pharaoh|حضارة مصر/i, '🏺', '#854d0e', '#3d2005', '#fde68a', ['pyramid', 'sun', 'temple', 'hourglass']],
+      [/human rights|(?<!media\s)ethic|moral|citizenship|حقوق الإنسان|أخلاق/i, '🕊️', '#1e3a8a', '#0f1f4d', '#fde68a', ['scales', 'users', 'flag', 'bulb']],
+      [/critical thinking|philosoph|reasoning|فلسف|منطق|تفكير/i, '💡', '#374151', '#111827', '#fcd34d', ['bulb', '~?', 'book', 'head']],
+      [/communication skills|presentation|public speaking|soft skills|interpersonal|study skills|career|employab|مهارات/i, '🎤', '#0369a1', '#082f49', '#bae6fd', ['mic', 'bubble', 'users', 'bulb']],
+      [/first aid|physical education|fitness|wellness|safety|اللياقة/i, '⛑️', '#b91c1c', '#450a0a', '#fecaca', ['firstaid', 'runner', 'heart', 'shield']],
+      [/research|methodolog|thesis|dissertation|capstone|graduation project|بحث/i, '🔎', '#334155', '#0f172a', '#93c5fd', ['search', 'doc', 'chart', 'book']],
+
+      // ---------- Computer Science ----------
+      [/machine learning|artificial intel|deep learning|neural|\bai\b|ذكاء/i, '🤖', '#2e1065', '#12052e', '#c084fc', ['robot', 'head', 'net', 'bulb']],
+      [/bioinformatic|computational bio/i, '🧬', '#134e4a', '#042f2e', '#5eead4', ['dna', 'code', 'db', 'chart']],
+      [/cyber|security|crypt|forensic|hacking|أمن/i, '🛡️', '#1f1d3a', '#0b0a1d', '#f87171', ['shield', 'lock', 'code', 'chip']],
+      [/management information|\bmis\b|\berp\b|information systems?|enterprise (system|resource)/i, '🖥️', '#155e75', '#083344', '#a5f3fc', ['monitor', 'db', 'briefcase', 'chart']],
+      [/database|\bsql\b|data ?warehouse|big data|information retrieval|قواعد/i, '🗄️', '#0f3d3e', '#041f20', '#5eead4', ['db', 'cloud', 'code', 'chart']],
+      [/data (science|mining|analy|visuali)|analytics/i, '📈', '#0f4c75', '#07263d', '#67e8f9', ['chart', 'db', '~∑', 'search']],
+      [/network|internet of|\biot\b|cloud|distributed|wireless sens/i, '🌐', '#0a2540', '#050f1c', '#22d3ee', ['net', 'cloud', 'antenna', 'globe']],
+      [/\bweb\b|html|front.?end|back.?end|internet computing|javascript/i, '🕸️', '#1e3a8a', '#0b1a4a', '#93c5fd', ['globe', 'code', 'monitor', 'net']],
+      [/mobile|android|\bios\b|app development/i, '📱', '#0f766e', '#042f2e', '#99f6e4', ['phone', 'code', 'cloud', 'bulb']],
+      [/game|computer graphics|animation|3d|virtual real|augmented|human.computer|\bhci\b|\bux\b|user (interface|experience)/i, '🎮', '#4c1d95', '#1e0a4a', '#f0abfc', ['gamepad', 'cube', 'palette', 'monitor']],
+      [/operating system|computer (architecture|organi)|logic design|digital (logic|system)|microprocessor|microcontroller|embedded|assembly|\bvlsi\b/i, '🔌', '#14532d', '#052e16', '#bef264', ['chip', 'code', 'gear', 'bolt']],
+      [/software|agile|requirement|\buml\b|devops|systems? (analysis|design)|object.oriented|design pattern/i, '🧩', '#164e63', '#083344', '#67e8f9', ['code', 'gear', 'doc', 'tree']],
+      [/algorithm|data struct|discrete|automata|theory of computation|compiler/i, '🧮', '#1e293b', '#0b1220', '#38bdf8', ['tree', 'code', '~∑', 'net']],
+
+      // ---------- Mass Communication ----------
+      [/journal|news|reporting|editing|\bpress\b|صحاف/i, '📰', '#1f2937', '#0b0f19', '#fca5a5', ['news', 'pen', 'mic', 'bubble']],
+      [/broadcast|radio\b|television|\btv\b|podcast|webcast|audio|إذاعة|تلفزيون/i, '📻', '#7f1d1d', '#3b0a0a', '#fecaca', ['mic', 'antenna', 'camera', 'clapper']],
+      [/public relation|\bpr\b|advertis|campaign|corporate communication|marketing communication|copywrit|إعلان|علاقات عامة/i, '📣', '#86198f', '#3b0764', '#f5d0fe', ['megaphone', 'target', 'bubble', 'bulb']],
+      [/photograph|camera|cinematograph|تصوير/i, '📷', '#27272a', '#09090b', '#e4e4e7', ['camera', 'bulb', 'eye', 'sun']],
+      [/\bfilms?\b|cinema|theat|stage|screenwrit|scriptwrit|video production|فيلم|سينما|مسرح/i, '🎬', '#450a0a', '#1c0404', '#fcd34d', ['clapper', 'mask', 'camera', '~★']],
+      [/social media|digital (media|journalism|storytelling|content)|multimedia|new media|content (creation|strateg)|mass comm|\bmedia\b|إعلام|اعلام/i, '📱', '#1d4ed8', '#0b1f66', '#bfdbfe', ['phone', 'bubble', 'globe', 'camera']],
+
+      // ---------- Arts & Design (specific) ----------
+      [/fashion|textile|garment|costume|pattern making|apparel|fabric|أزياء/i, '👗', '#9d174d', '#500724', '#fbcfe8', ['hanger', 'scissors', 'palette', 'pen']],
+      [/interior|furniture|space planning|decor|ديكور/i, '🛋️', '#78350f', '#2d1405', '#fed7aa', ['chair', 'lamp', 'house', 'ruler']],
+
+      // ---------- Dentistry, Physiotherapy, Pharmacy, Biotechnology ----------
+      [/dental|dentist|\boral\b|endodont|periodont|orthodont|prosthodont|tooth|teeth|caries|أسنان/i, '🦷', '#0e7490', '#083344', '#e0f2fe', ['tooth', 'cross', 'shield', 'bulb']],
+      [/physical therapy|physiotherap|kinesio|biomechanic|rehabilit|exercise|orthop|sports|musculo|electrotherap|manual therapy|علاج طبيعي/i, '🏃', '#c2410c', '#431407', '#fed7aa', ['runner', 'dumbbell', 'spine', 'pulse']],
+      [/pharmacolog|toxicolog|drug|therapeutic|pharmacotherap/i, '💊', '#4c1d95', '#1e0a4a', '#d8b4fe', ['pill', 'pulse', 'cell', 'flask']],
+      [/pharmaceut|dosage|formulation|biopharm|pharmacokinetic|cosmetic/i, '⚗️', '#0f766e', '#042f2e', '#99f6e4', ['pill', 'tube', 'flask', 'drop']],
+      [/medicinal|pharmacognos|phytochem|natural product|herbal|botan|plant (biology|science|physiolog)/i, '🌿', '#166534', '#052e16', '#bbf7d0', ['leaf', 'flask', 'pill', 'sun']],
+      [/clinical|pharmacy|pharmacist|hospital|patient|صيدل/i, '⚕️', '#115e59', '#042f2e', '#99f6e4', ['cross', 'pill', 'heart', 'pulse']],
+      [/biotech|bioprocess|fermentation|tissue|genetic engineering|bioreactor/i, '🧫', '#0e7490', '#083344', '#a5f3fc', ['dna', 'tube', 'cell', 'bulb']],
+
+      // ---------- Engineering ----------
+      [/engineering draw|technical draw|descriptive geom|\bcad\b|autocad|revit|رسم/i, '📐', '#1e3a5f', '#0b1b30', '#93c5fd', ['ruler', 'compass', 'cube', 'pen']],
+      [/biomedical|medical (device|instrument|electronic|imaging)/i, '🩻', '#0f766e', '#042f2e', '#a7f3d0', ['pulse', 'chip', 'heart', 'gear']],
+      [/telecom|signals?\b|antenna|microwave|radar|communications?\b|information theory|\bdsp\b|اتصالات/i, '📡', '#1e3a8a', '#0f1f4d', '#93c5fd', ['antenna', 'sine', 'chip', 'globe']],
+      [/electronic|analog|semiconductor|amplifier|\bpcb\b|إلكترون|الكترون/i, '🔌', '#064e3b', '#022c22', '#fcd34d', ['chip', 'resistor', 'bolt', 'sine']],
+      [/physic\w*\s*(ii\b|2\b)|electromagnet|electricity|electric (circuit|field)|circuit|magnet|كهرب|دوائر/i, '⚡', '#2b1b6b', '#14093a', '#fde047', ['bolt', 'magnet', 'resistor', 'sine']],
+      [/electrical machine|power (system|electronic|plant|engineer)|high voltage|transformer|renewable|solar|wind energy|energy|قوى/i, '🔋', '#713f12', '#2e1a07', '#fde047', ['pylon', 'turbine', 'sun', 'bolt']],
+      [/mechatron|robot|actuator|drone/i, '🦾', '#334155', '#0f172a', '#5eead4', ['robot', 'gear', 'chip', 'bolt']],
+      [/control|automat|servo|\bplc\b|instrumentation|sensors?/i, '🎛️', '#334155', '#0f172a', '#5eead4', ['gauge', 'gear', 'sine', 'chip']],
+      [/industrial|operations research|production|manufactur|workshop|lean\b|six sigma|ergonomic|facility|supply chain|logistic|inventory|quality|ورشة|إنتاج/i, '🏭', '#44403c', '#1c1917', '#fcd34d', ['gear', 'truck', 'gauge', 'calc']],
+      [/thermo|\bheat|combustion|refrigerat|air.?condition|hvac|حرار/i, '🔥', '#7c1d12', '#3a0b06', '#fdba74', ['flame', 'therm', 'gear', 'drop']],
+      [/fluid|hydraul|pneumat|hydrolog|water|pump|turbomachin|موائع|مياه/i, '💧', '#0c4a6e', '#06263a', '#7dd3fc', ['drop', 'gauge', 'sine', 'gear']],
+      [/geotech|soil|foundation|survey|geodes|highway|transport|traffic|road/i, '🧭', '#57534e', '#1c1917', '#fdba74', ['theodolite', 'layers', 'mountain', 'pin']],
+      [/mechanic|dynamic|statics|kinematic|machine (design|element)|vibration|strength of material|stress|ميكانيك/i, '⚙️', '#3a3f47', '#1c1f24', '#fb923c', ['gear', 'gauge', 'flame', 'ruler']],
+      [/material|metal|crystal|polymer|ceramic|corrosion|مواد|معادن/i, '🧱', '#3f3f46', '#18181b', '#a5b4fc', ['cube', 'layers', 'atom', 'gear']],
+      [/architect|urban|planning|landscape|housing|عمارة|معمار|عمران/i, '🏛️', '#374151', '#111827', '#e7e5e4', ['house', 'city', 'ruler', 'compass']],
+      [/structur|concrete|steel|civil|bridge|construction|مدني|إنشاء|خرسانة/i, '🏗️', '#5b3a1a', '#2c1a0a', '#fbbf24', ['bridge', 'city', 'helmet', 'ruler']],
+      [/environment|sustainab|climate|ecolog|waste|pollution|بيئة/i, '🌱', '#166534', '#052e16', '#bbf7d0', ['leaf', 'globe', 'drop', 'sun']],
+
+      // ---------- basic medical / life sciences ----------
+      [/biochem|molecular|genetic|\bdna\b|genom|cell biology|proteom|enzym|\bgene\b/i, '🧬', '#0e7490', '#083344', '#a5f3fc', ['dna', 'cell', 'tube', 'flask']],
+      [/microb|bacteri|virolog|parasit|mycolog|infect|antibiotic|فيروس|ميكروب/i, '🦠', '#365314', '#1a2e05', '#d9f99d', ['microbe', 'virus', 'microscope', 'tube']],
+      [/immun|serolog/i, '🛡️', '#9f1239', '#4c0519', '#fda4af', ['shield', 'cell', 'virus', 'cross']],
+      [/anatom|physiolog|histolog|embryolog|patholog|cytolog|hematolog|radiolog/i, '🫀', '#7f1d1d', '#3b0a0a', '#fecaca', ['heart', 'spine', 'head', 'microscope']],
+      [/\bbio|zoolog|life science|أحياء|احياء|بيولوج/i, '🔬', '#166534', '#052e16', '#bbf7d0', ['cell', 'leaf', 'dna', 'microscope']],
+      [/nutrition|food|diet|culinary|gastronom|bakery|غذاء|تغذية/i, '🥗', '#3f6212', '#1a2e05', '#fde68a', ['apple', 'leaf', 'fork', 'flask']],
+      [/medic|surgery|health|nursing|emergency|epidemiolog|(^|\s)طب(\s|$)|صحة/i, '🩺', '#b91c1c', '#450a0a', '#fee2e2', ['cross', 'pulse', 'firstaid', 'heart']],
+
+      // ---------- basic sciences ----------
+      [/astro|space|aero|satellite|فلك|فضاء/i, '🚀', '#1e1b4b', '#0a0820', '#c7d2fe', ['planet', 'sun', 'atom', 'bulb']],
+      [/physic|quantum|nuclear|optic|wave|فيزياء/i, '⚛️', '#1e2a78', '#0e1544', '#7dd3fc', ['atom', 'sine', 'planet', 'magnet']],
+      [/chem|organic|كيمياء/i, '🧪', '#14532d', '#052e16', '#bef264', ['flask', 'atom', 'tube', 'drop']],
+      [/statistic|probab|biostat|إحصاء|احصاء|احتمال/i, '📊', '#0f4c75', '#07263d', '#67e8f9', ['curve', 'chart', '~σ', 'dice']],
+      [/math|calculus|algebra|geometr|differential|numerical|trigon|optimi[sz]|رياضيات|تفاضل|تكامل|جبر/i, '🧮', '#3b1d6e', '#1b0c3a', '#f0abfc', ['~∑', '~π', '~∫', '~∞']],
+
+      // ---------- general computing ----------
+      [/program|coding|computer (science|skills|application)|computing|informat|\bit\b|\bict\b|برمج|حاسب|حاسوب/i, '💻', '#0b2a3f', '#04121e', '#38f5a1', ['code', 'monitor', '~{ }', 'chip']],
+
+      // ---------- Languages ----------
+      [/translat|interpret|subtitl|ترجمة/i, '🌍', '#0f766e', '#042f2e', '#99f6e4', ['bubble', '~Aa', 'globe', 'book']],
+      [/linguist|phonetic|phonolog|syntax|semantic|morpholog|pragmatic|discourse|لغويات/i, '🗣️', '#7c2d12', '#2d1405', '#fed7aa', ['bubble', 'mic', '~Aa', 'book']],
+      [/french|français|francais/i, '🗼', '#1e3a8a', '#0b1a4a', '#fca5a5', ['bubble', '~é', 'book', 'pen']],
+      [/german|deutsch/i, '🏰', '#292524', '#0c0a09', '#fcd34d', ['bubble', '~ß', 'book', 'pen']],
+      [/spanish|español|espanol/i, '💃', '#b91c1c', '#450a0a', '#fde047', ['bubble', '~ñ', 'book', 'pen']],
+      [/italian/i, '🍕', '#166534', '#052e16', '#fca5a5', ['bubble', '~à', 'book', 'pen']],
+      [/chinese|mandarin/i, '🏮', '#991b1b', '#450a0a', '#fde047', ['bubble', '~你', 'book', 'pen']],
+      [/japanese/i, '🗾', '#9f1239', '#4c0519', '#fecdd3', ['bubble', '~あ', 'book', 'pen']],
+      [/russian/i, '🪆', '#1e3a8a', '#0f1f4d', '#e2e8f0', ['bubble', '~Ж', 'book', 'pen']],
+      [/turkish/i, '🕌', '#b91c1c', '#450a0a', '#fef3c7', ['bubble', '~ğ', 'book', 'pen']],
+      [/english|writing|composition|grammar|reading|speaking|essay|ielts|academic|tefl|teaching|pedagog|انجليز|إنجليز/i, '✍️', '#78350f', '#2d1405', '#fde68a', ['book', 'pen', 'bubble', '~Aa']],
+      [/literatur|poetry|drama|novel|shakespear|folklore|comparative|أدب/i, '📚', '#581c87', '#2e1065', '#e9d5ff', ['book', 'mask', 'pen', '~“']],
+      [/language|لغة/i, '🗣️', '#0369a1', '#082f49', '#bae6fd', ['bubble', '~Aa', 'globe', 'book']],
+
+      // ---------- Law, Management Sciences ----------
+      [/\blaws?\b|legal|legislat|constitution|jurisprud|contract|قانون|حقوق/i, '⚖️', '#422006', '#1c0d03', '#fcd34d', ['scales', 'doc', 'temple', 'flag']],
+      [/account|audit|bookkeep|\btax|costing|محاسب/i, '🧾', '#14532d', '#052e16', '#86efac', ['calc', 'coin', 'doc', 'chart']],
+      [/financ|invest|banking|\bbank|insurance|portfolio|capital|stock|monetary|fintech|مال/i, '💰', '#064e3b', '#022c22', '#6ee7b7', ['coin', 'trend', 'chart', 'briefcase']],
+      [/econom|trade|اقتصاد/i, '📊', '#1e40af', '#0b1f66', '#fcd34d', ['trend', 'coin', 'globe', 'chart']],
+      [/marketing|consumer|sales|retail|brand|e-?commerce|تسويق/i, '🛍️', '#9d174d', '#500724', '#fbcfe8', ['megaphone', 'cart', 'target', 'chart']],
+      [/human resource|\bhr\b|organi[sz]ational|leadership|negotiation|personnel|recruit|موارد بشرية/i, '🧑‍🤝‍🧑', '#6b21a8', '#2e0a4f', '#e9d5ff', ['users', 'target', 'bulb', 'briefcase']],
+      [/manage|business|entrepreneur|strateg|project|operations|administration|enterprise|startup|innovation|إدارة|ادارة/i, '💼', '#1e3a5f', '#0b1b30', '#fcd34d', ['briefcase', 'target', 'users', 'chart']],
+
+      // ---------- Humanities ----------
+      [/politic|government|diplomac|international relations|public policy|سياس/i, '🏛️', '#1e3a8a', '#0f1f4d', '#bfdbfe', ['flag', 'globe', 'users', 'scales']],
+      [/sociolog|anthropolog|\bsocial|society|community|population|gender|اجتماع/i, '👥', '#365314', '#1a2e05', '#d9f99d', ['users', 'globe', 'bubble', 'heart']],
+      [/psycholog|neuro|cogniti|behavio|counsel|mental|نفس/i, '🧠', '#581c87', '#2e1065', '#e9d5ff', ['head', 'bulb', 'eye', 'heart']],
+      [/histor|archaeolog|ancient|civiliz|heritage|تاريخ|حضارة/i, '🏛️', '#78350f', '#2d1405', '#fde68a', ['temple', 'hourglass', 'pyramid', 'book']],
+      [/geograph|geolog|geospatial|\bgis\b|earth|جغراف|جيولوج/i, '🌍', '#0f766e', '#042f2e', '#99f6e4', ['globe', 'pin', 'mountain', 'compass']],
+      [/music|singing|choir|موسيق/i, '🎵', '#581c87', '#2e1065', '#e9d5ff', ['note', 'sine', 'mic', '~♪']],
+
+      // ---------- Arts & Design (general) ----------
+      [/graphic|typograph|illustrat|visual|layout|logo|colou?r|design|\barts?\b|paint|sculpt|aesthetic|(^|\s)فن(ون)?(\s|$)/i, '🎨', '#6d28d9', '#2e1065', '#ddd6fe', ['palette', 'pen', 'ruler', 'bulb']],
     ];
-    const artCache = {};
-    const artFor = (text) => {
-      const k = (THEMES.find(([re]) => re.test(text)) || [0, 'default'])[1];
-      return artCache[k] || (artCache[k] = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(ART[k]())}")`);
-    };
+    const DEFAULT_SUBJECT = [null, '📘', '#1e3a8a', '#0f1f4d', '#93c5fd', ['book', 'cap', 'bulb', 'target']];
+
+    const subjectFor = (text) => SUBJECTS.find(([re]) => re.test(text)) || DEFAULT_SUBJECT;
+    const iconFor = (text) => subjectFor(text)[1];
+
+    // 160 x 160 seamless tile: four subject icons + tiny sparkles, nothing touches the tile edge
+    function tileSvg(s) {
+      const slots = [[40, 40, -10], [120, 40, 9], [40, 120, 8], [120, 120, -9]];
+      const names = s[5];
+      const glyph = (n) => (n[0] === '~'
+        ? `<text y="9" font-size="27" text-anchor="middle" font-family="Georgia,'Segoe UI',serif" fill="currentColor" stroke="none">${n.slice(1)}</text>`
+        : (ICON[n] || ICON.bulb));
+      const g = slots.map(([x, y, r], i) => `<g transform="translate(${x} ${y}) rotate(${r})">${glyph(names[i % names.length])}</g>`).join('');
+      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">' +
+        `<g color="${s[4]}" stroke="currentColor" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">` +
+        `<g opacity=".92">${g}</g>` +
+        '<g fill="currentColor" stroke="none" opacity=".5"><circle cx="80" cy="80" r="2.6"/><circle cx="80" cy="30" r="1.6"/><circle cx="80" cy="130" r="1.6"/><circle cx="30" cy="80" r="1.6"/><circle cx="130" cy="80" r="1.6"/></g>' +
+        '</g></svg>';
+    }
+
+    const hexRgb = (h, k = 1) => [1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * k)).join(',');
+    const patCache = {};
+    // paints a course card header / course banner with its subject theme (colours, accent, pattern)
+    function themeNode(node, text) {
+      const s = subjectFor(text);
+      const key = s[2] + s[4] + s[5];
+      const url = s[5] === 'IMG'
+        ? `url("${ARABIC_PATTERN}")`
+        : (patCache[key] || (patCache[key] = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(tileSvg(s))}")`));
+      node.classList.add('cp-pat');
+      node.style.setProperty('--pat', url);
+      node.style.setProperty('--p1', s[2]);
+      node.style.setProperty('--p2', s[3]);
+      node.style.setProperty('--acc', hexRgb(s[4]));
+      node.style.setProperty('--dk', hexRgb(s[3], .45));
+    }
 
     /* =====================================================
        HELPERS
@@ -988,7 +942,7 @@
         const head = document.createElement('div');
         head.className = 'cp-head';
         head.style.setProperty('--h', hash(first || cat || raw) % 360);
-        head.style.setProperty('--bg', artFor(name + ' ' + raw));
+        themeNode(head, name + ' ' + raw);
 
         const left = document.createElement('div'); left.className = 'cp-left';
         const ic = document.createElement('div'); ic.className = 'cp-icon'; ic.textContent = iconFor(raw);
@@ -1116,7 +1070,7 @@
       }
       hero.dataset.sig = sig;
       hero.style.setProperty('--h', hash(name) % 360);
-      hero.style.setProperty('--bg', artFor(name));
+      themeNode(hero, name);
       hero.textContent = '';
 
       const top = el('div', 'cp-hero-top');
@@ -1609,7 +1563,7 @@
     new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 200); })
       .observe(document.body, { childList: true, subtree: true });
     run();
-    LOG('v5.3 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
+    LOG('v5.6 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
   }
 
   /* =====================================================

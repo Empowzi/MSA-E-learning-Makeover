@@ -4,7 +4,7 @@
 // @author       Empowzi
 // @license      Copyright 2026 Empowzi. All rights reserved.
 // @namespace    https://tampermonkey.net/
-// @version      5.6
+// @version      5.9
 // @description  Clean UI, dark mode, subject artwork on course cards, deadline panel on My courses, plus pop-ups on any website for new MSA announcements and assignment alerts
 // @match        *://*/*
 // @noframes
@@ -285,24 +285,52 @@
       .cp-head.cp-pat .cp-badge {
         background: rgba(var(--dk), .75); color: rgb(var(--acc)); box-shadow: inset 0 0 0 1px rgba(var(--acc), .4);
       }
-      /* course page banner */
-      .cp-hero.cp-pat { background: linear-gradient(135deg, var(--p1), var(--p2)); box-shadow: 0 10px 26px rgba(var(--dk), .5); }
-      .cp-hero.cp-pat::before, .cp-hero.cp-pat::after { display: none; }
-      .cp-hero.cp-pat .cp-hero-art {
-        background: var(--pat) 0 0 / 170px 170px repeat;
-        -webkit-mask-image: none; mask-image: none;
+      /* Moodle's own photo header is replaced by the themed banner */
+      .cp-hdr-hidden { display: none !important; }
+      .cp-nophoto, .cp-nophoto::before, .cp-nophoto::after { background-image: none !important; }
+      .cp-nophoto > img, .cp-nophoto > picture, .cp-nophoto > video { display: none !important; }
+      .cp-hero.cp-hero-out { width: min(1180px, calc(100% - 48px)); margin: 16px auto 10px; zoom: var(--cp-zoom, .9); }
+      .cp-hero-crumbs { font-size: .74rem; font-weight: 600; letter-spacing: .2px; margin-bottom: 3px; }
+      .cp-hero-crumbs a { color: rgb(var(--acc)) !important; opacity: .85; text-decoration: none !important; }
+      .cp-hero-crumbs a:hover { opacity: 1; text-decoration: underline !important; }
+      .cp-hero-crumbs span { opacity: .5; margin: 0 5px; }
+      /* course page banner: same two-part card as the My courses cards (pattern header + solid strip) */
+      .cp-hero.cp-pat {
+        padding: 0; background: rgb(var(--dk)); border-radius: 20px;
+        box-shadow: 0 10px 26px rgba(var(--dk), .5), 0 0 0 1px rgba(var(--acc), .25);
       }
+      .cp-hero.cp-pat::before, .cp-hero.cp-pat::after { display: none; }
+      .cp-hero-head {
+        position: relative; overflow: hidden; min-height: 112px; padding: 16px 22px;
+        display: flex; align-items: center;
+        background: linear-gradient(135deg, var(--p1), var(--p2));
+      }
+      .cp-hero.cp-pat .cp-hero-art {
+        background: var(--pat) 0 0 / 130px 130px repeat;
+        -webkit-mask-image: none; mask-image: none; opacity: .95;
+        transition: background-position 1.4s ease;
+      }
+      .cp-hero.cp-pat:hover .cp-hero-art { background-position: 46px 24px; }
       .cp-hero.cp-pat .cp-hero-art::after {
         content: ""; position: absolute; inset: 0;
-        background: linear-gradient(90deg, rgba(var(--dk), .78), rgba(var(--dk), .28) 55%, transparent);
+        background: radial-gradient(ellipse at 26% 50%, rgba(var(--dk), .8), rgba(var(--dk), .3) 60%, transparent 85%);
       }
       .cp-hero.cp-pat .cp-hero-top {
-        width: fit-content; max-width: 100%; padding: 10px 18px 10px 10px; border-radius: 20px;
-        background: rgba(var(--dk), .66); backdrop-filter: blur(5px);
+        width: fit-content; max-width: 78%; padding: 8px 18px 8px 8px; gap: 12px; border-radius: 16px;
+        background: rgba(var(--dk), .68); backdrop-filter: blur(5px);
         box-shadow: inset 0 0 0 1px rgba(var(--acc), .45);
       }
-      .cp-hero.cp-pat .cp-hero-emoji { background: rgba(var(--acc), .2); box-shadow: inset 0 0 0 1px rgba(var(--acc), .5); }
-      .cp-hero.cp-pat .cp-hero-chip { background: rgba(var(--dk), .62); box-shadow: inset 0 0 0 1px rgba(var(--acc), .38); }
+      .cp-hero.cp-pat .cp-hero-emoji {
+        width: 46px; height: 46px; font-size: 26px; border-radius: 13px;
+        background: rgba(var(--acc), .2); box-shadow: inset 0 0 0 1px rgba(var(--acc), .5);
+      }
+      .cp-hero.cp-pat .cp-hero-title { font-size: 1.15rem; line-height: 1.25; }
+      .cp-hero.cp-pat .cp-hero-tip { color: rgb(var(--acc)); opacity: 1; font-weight: 600; font-size: .8rem; margin-top: 2px; letter-spacing: .3px; }
+      .cp-hero.cp-pat .cp-hero-chips { margin: 0; padding: 12px 20px 14px; background: rgb(var(--dk)); }
+      .cp-hero.cp-pat .cp-hero-chip {
+        background: rgba(var(--acc), .12); box-shadow: inset 0 0 0 1px rgba(var(--acc), .35);
+      }
+      .cp-hero.cp-pat .cp-hero-chip.tip { background: transparent; box-shadow: none; opacity: .85; font-weight: 500; }
 
       /* ---------- week / section cards ---------- */
       body.path-course-view .course-content li.section.course-section {
@@ -1052,6 +1080,31 @@
       }
     }
 
+    // the whole block Moodle uses for its photo header (photo wrapper + card + breadcrumb + title);
+    // climbs to the outermost wrapper that holds neither the course content nor the tabs
+    function headerBlock() {
+      const cc = document.querySelector('.course-content');
+      if (!cc) return null;
+      const hdr = document.querySelector('#page-header');
+      const h1 = [...document.querySelectorAll('h1')].find((h) => !h.closest('#cp-hero'));
+      let e = hdr && !hdr.contains(cc) ? hdr : h1;
+      if (!e) return null;
+      while (e.parentElement && e.parentElement !== document.body &&
+             !e.parentElement.contains(cc) && !e.parentElement.querySelector('.secondary-navigation')) {
+        e = e.parentElement;
+      }
+      return e;
+    }
+
+    // belt and braces: no photo background / image may survive anywhere around the banner
+    function stripPhotos() {
+      const hero = document.getElementById('cp-hero');
+      if (!hero) return;
+      for (let a = hero.parentElement; a && a !== document.body; a = a.parentElement) {
+        if (!a.classList.contains('cp-nophoto')) a.classList.add('cp-nophoto');
+      }
+    }
+
     function buildHero(sections, total, upcoming, assigns, known, done) {
       const main = document.querySelector('#region-main');
       if (!main) return;
@@ -1066,7 +1119,14 @@
 
       if (!hero) {
         hero = el('div', 'cp-hero'); hero.id = 'cp-hero';
-        main.prepend(hero);
+        const blk = headerBlock();
+        if (blk && blk.parentElement) {
+          blk.parentElement.insertBefore(hero, blk);
+          blk.classList.add('cp-hdr-hidden');
+          hero.classList.add(main.contains(hero) ? 'cp-hero-in' : 'cp-hero-out');
+        } else {
+          main.prepend(hero);
+        }
       }
       hero.dataset.sig = sig;
       hero.style.setProperty('--h', hash(name) % 360);
@@ -1078,8 +1138,21 @@
       em.title = 'Click me 🎉';
       em.onclick = (e) => confetti(e.clientX, e.clientY);
       const txt = el('div');
-      txt.append(el('div', 'cp-hero-title', name),
-                 el('div', 'cp-hero-tip', TIPS[Math.floor(Date.now() / 864e5) % TIPS.length]));
+      const tipTxt = TIPS[Math.floor(Date.now() / 864e5) % TIPS.length];
+      const heroCode = codeOf(name);
+      const heroName = heroCode ? cleanName(name) : name;
+      const crumbLinks = [...document.querySelectorAll('.breadcrumb a')].filter((a) => !a.closest('#cp-hero')).slice(0, 2);
+      if (crumbLinks.length) {
+        const cr = el('div', 'cp-hero-crumbs');
+        crumbLinks.forEach((a, i) => {
+          if (i) cr.append(el('span', '', '/'));
+          const l = el('a', '', a.textContent.trim());
+          l.href = a.href;
+          cr.append(l);
+        });
+        txt.append(cr);
+      }
+      txt.append(el('div', 'cp-hero-title', heroName), el('div', 'cp-hero-tip', heroCode || tipTxt));
       top.append(em, txt);
 
       const chips = el('div', 'cp-hero-chips');
@@ -1095,7 +1168,10 @@
         const nm = next.name.length > 38 ? next.name.slice(0, 36) + '…' : next.name;
         chips.append(el('span', 'cp-hero-chip', `🎯 Next: ${nm} · ${rel(next.ts - Date.now())} left`));
       }
-      hero.append(el('div', 'cp-hero-art'), top, chips);
+      if (heroCode) chips.append(el('span', 'cp-hero-chip tip', tipTxt));
+      const headBox = el('div', 'cp-hero-head');
+      headBox.append(el('div', 'cp-hero-art'), top);
+      hero.append(headBox, chips);
     }
 
     /* ---------- submission status (assignments) ---------- */
@@ -1547,7 +1623,7 @@
       hideMore();
       if (enableCards) { enhance(); saveCourses(); }
       mountAlertBtn();
-      if (isCourse) enhanceCourse();
+      if (isCourse) { enhanceCourse(); stripPhotos(); }
       if (isAssign) enhanceAssign();
       // on My courses / Dashboard: once the cards have loaded, open the deadline panel automatically (one time)
       if (isMyCourses && !autoDone) {
@@ -1563,7 +1639,7 @@
     new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 200); })
       .observe(document.body, { childList: true, subtree: true });
     run();
-    LOG('v5.6 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
+    LOG('v5.9 loaded | ' + (isCourse ? 'course page' : enableCards ? 'cards ON' : 'inside course/activity'));
   }
 
   /* =====================================================
